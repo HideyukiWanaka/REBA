@@ -170,6 +170,16 @@ function angleWithVertical(vector) {
 // --- REBA用関節角度算出関数 ---
 // 検出された１ポーズのlandmarksを受け取り、各部位の角度を計算して返す例です。
 function computeREBAAngles(landmarks) {
+
+  const requiredIndexes = [0, 11, 12, 13, 15, 19, 23, 24, 25, 27, 14, 16, 20, 26, 28];
+  // 必要なランドマークがすべて存在するか確認
+  for (const index of requiredIndexes) {
+    if (!landmarks[index]) {
+      console.warn(`landmark ${index} is missing.`);
+      return null;
+    }
+  }
+  
   // ランドマークの対応（MediaPipe Poseのインデックス）
   // 0: nose, 11: left shoulder, 12: right shoulder,
   // 13: left elbow, 14: right elbow, 15: left wrist, 16: right wrist,
@@ -289,22 +299,24 @@ async function predictWebcam() {
   let startTimeMs = performance.now();
   if (lastVideoTime !== video.currentTime) {
     lastVideoTime = video.currentTime;
+    // predictWebcam() のコールバック内での利用例
     poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      
       for (const landmarkSet of result.landmarks) {
-        // 既存の描画処理
         drawingUtils.drawLandmarks(landmarkSet, {
           radius: (data) => DrawingUtils.lerp(data.from.z, -0.15, 0.1, 5, 1)
         });
         drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
-
-        // REBA評価に必要な角度を計算
+    
         const angles = computeREBAAngles(landmarkSet);
-        console.log("REBA angles:", angles);
-
-        displayAngles(canvasCtx, angles);
-        // ※ここで必要に応じて、各角度を画面に表示したり、REBAスコア算出ロジックに渡したりできます。
+        if (angles) {
+          console.log("REBA angles:", angles);
+          displayAngles(canvasCtx, angles);
+        } else {
+          console.warn("角度計算に必要なランドマークが不足しています。");
+        }
       }
       canvasCtx.restore();
     });
