@@ -246,6 +246,31 @@ function computeREBAAngles(landmarks) {
   };
 }
 
+function displayAngles(ctx, angles) {
+  ctx.fillStyle = "red";
+  ctx.font = "16px Arial";
+  const lineHeight = 18;
+  const startX = 10;
+  let startY = 20;
+  const lines = [
+    `Trunk Angle: ${angles.trunkAngle.toFixed(1)}°`,
+    `Neck Angle: ${angles.neckAngle.toFixed(1)}°`,
+    `Left Upper Arm: ${angles.leftUpperArmAngle.toFixed(1)}°`,
+    `Left Lower Arm: ${angles.leftLowerArmAngle.toFixed(1)}°`,
+    `Left Wrist: ${angles.leftWristAngle.toFixed(1)}°`,
+    `Right Upper Arm: ${angles.rightUpperArmAngle.toFixed(1)}°`,
+    `Right Lower Arm: ${angles.rightLowerArmAngle.toFixed(1)}°`,
+    `Right Wrist: ${angles.rightWristAngle.toFixed(1)}°`,
+    `Left Knee: ${angles.leftKneeAngle.toFixed(1)}°`,
+    `Right Knee: ${angles.rightKneeAngle.toFixed(1)}°`
+  ];
+  lines.forEach(line => {
+    ctx.fillText(line, startX, startY);
+    startY += lineHeight;
+  });
+}
+
+
 // --- 例: Webカメラからの検出結果内での利用 ---
 // predictWebcam() 内の poseLandmarker.detectForVideo() のコールバック内で
 // 各ポーズについて角度を計算し、結果をコンソールに出力します。
@@ -278,7 +303,7 @@ async function predictWebcam() {
         const angles = computeREBAAngles(landmarkSet);
         console.log("REBA angles:", angles);
 
-        //displayAngles(canvasCtx, angles);
+        displayAngles(canvasCtx, angles);
         // ※ここで必要に応じて、各角度を画面に表示したり、REBAスコア算出ロジックに渡したりできます。
       }
       canvasCtx.restore();
