@@ -1,57 +1,52 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>REBAスコア計測</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="./style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <title>MediaPipe Pose Landmarker Task for web</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <h1>REBAスコア計測アプリ</h1>
+  <h1>Pose detection using the MediaPipe PoseLandmarker task</h1>
+  <section id="demos" class="invisible">
+    <h2>Demo: Detecting Images</h2>
+    <p><b>Click on an image below</b> to see the key landmarks of the body.</p>
+    <div class="detectOnClick">
+      <!-- source: https://pixabay.com/photos/woman-asia-beautiful-cambodia-1822514/ -->
+      <img src="https://assets.codepen.io/9177687/woman-ge0f199f92_640.jpg" width="100%" crossorigin="anonymous" title="Click to get detection!" />
+    </div>
+    <div class="detectOnClick">
+      <!-- source: https://pixabay.com/photos/woman-relaxation-portrait-3053489/ -->
+      <img src="https://assets.codepen.io/9177687/woman-g1af8d3deb_640.jpg" width="100%" crossorigin="anonymous" title="Click to get detection!" />
+    </div>
 
-  <!-- 補正UIを最上部に表示 -->
-  <div id="sidePanel">
-    <fieldset>
-      <legend>荷重スコア（Load/Force）</legend>
-      <label><input type="radio" name="loadScore" value="0" checked> 0: 軽い（<5kg）</label><br>
-      <label><input type="radio" name="loadScore" value="1"> 1: 中程度（5–10kg）</label><br>
-      <label><input type="radio" name="loadScore" value="2"> 2: 重い（>10kg）</label><br>
-      <label><input type="radio" name="loadScore" value="3"> 3: 衝撃的・突発的</label>
-    </fieldset>
+    <h2>Demo: Webcam continuous pose landmarks detection</h2>
+    <p>
+      Stand in front of your webcam to get real-time pose landmarker detection.</br>
+      Click <b>ENABLE WEBCAM</b> below and grant access to the webcam if prompted.
+    </p>
 
-    <fieldset>
-      <legend>把持の良さ（Coupling）</legend>
-      <label><input type="radio" name="couplingScore" value="0" checked> 良い（安定してしっかり把持できる）</label><br>
-      <label><input type="radio" name="couplingScore" value="1"> 普通（やや不安定）</label><br>
-      <label><input type="radio" name="couplingScore" value="2"> 悪い（不安定または滑りやすい）</label>
-    </fieldset>
-
-    <fieldset>
-      <legend>Activity スコア</legend>
-      <label><input type="radio" name="activityScore" value="0" checked> 0: 静的な姿勢</label><br>
-      <label><input type="radio" name="activityScore" value="1"> 1: 姿勢の変化あり</label><br>
-      <label><input type="radio" name="activityScore" value="2"> 2: 頻繁な変化・素早い動作</label>
-    </fieldset>
-
-    <fieldset>
-      <legend>膝の状態</legend>
-      <label><input type="radio" name="kneeMode" value="both" checked> 両足支持</label><br>
-      <label><input type="radio" name="kneeMode" value="one"> 片足支持</label><br>
-      <label><input type="radio" name="kneeMode" value="sitwalk"> 座位・歩行中</label>
-    </fieldset>
-  </div>
-
-  <!-- 動画キャンバスは中段に -->
-  <section id="demos">
-    <button id="webcamButton">撮影開始</button>
-    <video id="webcam" autoplay playsinline style="display: none;"></video>
-    <canvas id="output_canvas" class="output_canvas"></canvas>
+    <div id="liveView" class="videoView">
+      <button id="webcamButton" class="mdc-button mdc-button--raised">
+        <span class="mdc-button__ripple"></span>
+        <span class="mdc-button__label">ENABLE WEBCAM</span>
+      </button>
+      <!-- ここに録画用のボタンを追加 -->
+      <div id="recordingControls" style="margin-top: 20px;">
+        <button id="recordingStartButton" class="mdc-button mdc-button--raised">
+          <span class="mdc-button__ripple"></span>
+          <span class="mdc-button__label">Recording Start</span>
+        </button>
+        <button id="recordingStopButton" class="mdc-button mdc-button--raised">
+          <span class="mdc-button__ripple"></span>
+          <span class="mdc-button__label">Recording Stop</span>
+        </button>
+      </div>
+      <div style="position: relative;">
+        <video id="webcam" style="width: 1280px; height: 720px; position: abso" autoplay playsinline></video>
+        <canvas class="output_canvas" id="output_canvas" width="1280" height="720" style="position: absolute; left: 0px; top: 0px;"></canvas>
+      </div>
+    </div>
   </section>
-
-  <!-- グラフは最下段に -->
-  <canvas id="rebaChart" height="300"></canvas>
-
   <script type="module" src="./script.js"></script>
 </body>
 </html>
