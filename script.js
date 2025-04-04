@@ -278,6 +278,7 @@ async function predictWebcam() {
         const angles = computeREBAAngles(landmarkSet);
         console.log("REBA angles:", angles);
 
+          displayAngles(canvasCtx, angles);
         // ※ここで必要に応じて、各角度を画面に表示したり、REBAスコア算出ロジックに渡したりできます。
       }
       canvasCtx.restore();
