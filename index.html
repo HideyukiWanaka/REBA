@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>REBAスコア計測</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>REBAスコア計測アプリ</h1>
+
+  <!-- 補正UIを最上部に表示 -->
+  <div id="sidePanel">
+    <fieldset>
+      <legend>荷重スコア（Load/Force）</legend>
+      <label><input type="radio" name="loadScore" value="0" checked> 0: 軽い（<5kg）</label><br>
+      <label><input type="radio" name="loadScore" value="1"> 1: 中程度（5–10kg）</label><br>
+      <label><input type="radio" name="loadScore" value="2"> 2: 重い（>10kg）</label><br>
+      <label><input type="radio" name="loadScore" value="3"> 3: 衝撃的・突発的</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>把持の良さ（Coupling）</legend>
+      <label><input type="radio" name="couplingScore" value="0" checked> 良い（安定してしっかり把持できる）</label><br>
+      <label><input type="radio" name="couplingScore" value="1"> 普通（やや不安定）</label><br>
+      <label><input type="radio" name="couplingScore" value="2"> 悪い（不安定または滑りやすい）</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Activity スコア</legend>
+      <label><input type="radio" name="activityScore" value="0" checked> 0: 静的な姿勢</label><br>
+      <label><input type="radio" name="activityScore" value="1"> 1: 姿勢の変化あり</label><br>
+      <label><input type="radio" name="activityScore" value="2"> 2: 頻繁な変化・素早い動作</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>膝の状態</legend>
+      <label><input type="radio" name="kneeMode" value="both" checked> 両足支持</label><br>
+      <label><input type="radio" name="kneeMode" value="one"> 片足支持</label><br>
+      <label><input type="radio" name="kneeMode" value="sitwalk"> 座位・歩行中</label>
+    </fieldset>
+  </div>
+
+  <!-- 動画キャンバスは中段に -->
+  <section id="demos">
+    <button id="webcamButton">撮影開始</button>
+    <video id="webcam" autoplay playsinline style="display: none;"></video>
+    <canvas id="output_canvas" class="output_canvas"></canvas>
+  </section>
+
+  <!-- グラフは最下段に -->
+  <canvas id="rebaChart" height="300"></canvas>
+
+  <script type="module" src="./script.js"></script>
+</body>
+</html>

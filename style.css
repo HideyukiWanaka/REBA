@@ -1,0 +1,39 @@
+body {
+  font-family: sans-serif;
+  margin: 20px;
+}
+
+video, canvas.output_canvas {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  /* transform: rotateY(180deg); */  /* ← 左右反転を無効化 */
+  display: block;
+  margin: auto;
+  background: black;
+}
+
+#sidePanel {
+  margin-top: 20px;
+  width: 100%;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+fieldset {
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  padding: 10px;
+}
+
+#rebaChart {
+  width: 100%;
+  max-width: 640px;
+  margin: 20px auto;
+  display: block;
+}
