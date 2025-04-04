@@ -133,33 +133,157 @@ function enableCam(event) {
     });
 }
 let lastVideoTime = -1;
+
+// --- 角度計算用ユーティリティ関数 ---
+
+/**
+ * 三点 A, B, C のうち B を頂点とした角度を算出（度数に変換）
+ * @param {object} A {x, y}
+ * @param {object} B {x, y}
+ * @param {object} C {x, y}
+ * @returns {number} 角度（度）
+ */
+function calculateAngle(A, B, C) {
+  const AB = { x: A.x - B.x, y: A.y - B.y };
+  const CB = { x: C.x - B.x, y: C.y - B.y };
+  const dot = AB.x * CB.x + AB.y * CB.y;
+  const normAB = Math.sqrt(AB.x * AB.x + AB.y * AB.y);
+  const normCB = Math.sqrt(CB.x * CB.x + CB.y * CB.y);
+  const angleRad = Math.acos(dot / (normAB * normCB));
+  return angleRad * (180 / Math.PI);
+}
+
+/**
+ * ベクトルと垂直（(0,-1)）との角度を算出（度数に変換）
+ * ※画像上では y 座標が下方向に増加するため、垂直は (0, -1) と定義
+ * @param {object} vector {x, y}
+ * @returns {number} 角度（度）
+ */
+function angleWithVertical(vector) {
+  const vertical = { x: 0, y: -1 };
+  const dot = vector.x * vertical.x + vector.y * vertical.y; // = -vector.y
+  const normVector = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+  const angleRad = Math.acos(dot / normVector);
+  return angleRad * (180 / Math.PI);
+}
+
+// --- REBA用関節角度算出関数 ---
+// 検出された１ポーズのlandmarksを受け取り、各部位の角度を計算して返す例です。
+function computeREBAAngles(landmarks) {
+  // ランドマークの対応（MediaPipe Poseのインデックス）
+  // 0: nose, 11: left shoulder, 12: right shoulder,
+  // 13: left elbow, 14: right elbow, 15: left wrist, 16: right wrist,
+  // 19: left index, 20: right index, 23: left hip, 24: right hip,
+  // 25: left knee, 26: right knee, 27: left ankle, 28: right ankle
+
+  // 1. トランク角度（両肩中点と両股関節中点から）
+  const shoulderCenter = {
+    x: (landmarks[11].x + landmarks[12].x) / 2,
+    y: (landmarks[11].y + landmarks[12].y) / 2
+  };
+  const hipCenter = {
+    x: (landmarks[23].x + landmarks[24].x) / 2,
+    y: (landmarks[23].y + landmarks[24].y) / 2
+  };
+  const trunkVector = {
+    x: shoulderCenter.x - hipCenter.x,
+    y: shoulderCenter.y - hipCenter.y
+  };
+  const trunkAngle = angleWithVertical(trunkVector);
+
+  // 2. 首角度（鼻と両肩中点から）
+  const nose = landmarks[0];
+  const neckVector = {
+    x: nose.x - shoulderCenter.x,
+    y: nose.y - shoulderCenter.y
+  };
+  const neckAngle = angleWithVertical(neckVector);
+
+  // 3. 左上腕角度（左肩から左肘のベクトルと垂直との角度）
+  const leftUpperArmVector = {
+    x: landmarks[13].x - landmarks[11].x,
+    y: landmarks[13].y - landmarks[11].y
+  };
+  const leftUpperArmAngle = angleWithVertical(leftUpperArmVector);
+
+  // 4. 左下腕角度（左肩, 左肘, 左手首）
+  const leftLowerArmAngle = calculateAngle(landmarks[11], landmarks[13], landmarks[15]);
+
+  // 5. 左手首角度（左肘, 左手首, 左人差し指）
+  const leftWristAngle = calculateAngle(landmarks[13], landmarks[15], landmarks[19]);
+
+  // 6. 右上腕角度（右肩から右肘のベクトルと垂直との角度）
+  const rightUpperArmVector = {
+    x: landmarks[14].x - landmarks[12].x,
+    y: landmarks[14].y - landmarks[12].y
+  };
+  const rightUpperArmAngle = angleWithVertical(rightUpperArmVector);
+
+  // 7. 右下腕角度（右肩, 右肘, 右手首）
+  const rightLowerArmAngle = calculateAngle(landmarks[12], landmarks[14], landmarks[16]);
+
+  // 8. 右手首角度（右肘, 右手首, 右人差し指）
+  const rightWristAngle = calculateAngle(landmarks[14], landmarks[16], landmarks[20]);
+
+  // 9. 左膝角度（左股関節, 左膝, 左足首）
+  const leftKneeAngle = calculateAngle(landmarks[23], landmarks[25], landmarks[27]);
+
+  // 10. 右膝角度（右股関節, 右膝, 右足首）
+  const rightKneeAngle = calculateAngle(landmarks[24], landmarks[26], landmarks[28]);
+
+  // 結果をオブジェクトにまとめる
+  return {
+    trunkAngle,
+    neckAngle,
+    leftUpperArmAngle,
+    leftLowerArmAngle,
+    leftWristAngle,
+    rightUpperArmAngle,
+    rightLowerArmAngle,
+    rightWristAngle,
+    leftKneeAngle,
+    rightKneeAngle
+  };
+}
+
+// --- 例: Webカメラからの検出結果内での利用 ---
+// predictWebcam() 内の poseLandmarker.detectForVideo() のコールバック内で
+// 各ポーズについて角度を計算し、結果をコンソールに出力します。
+
 async function predictWebcam() {
-    canvasElement.style.height = videoHeight;
-    video.style.height = videoHeight;
-    canvasElement.style.width = videoWidth;
-    video.style.width = videoWidth;
-    // Now let's start detecting the stream.
-    if (runningMode === "IMAGE") {
-        runningMode = "VIDEO";
-        await poseLandmarker.setOptions({ runningMode: "VIDEO" });
-    }
-    let startTimeMs = performance.now();
-    if (lastVideoTime !== video.currentTime) {
-        lastVideoTime = video.currentTime;
-        poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            for (const landmark of result.landmarks) {
-                drawingUtils.drawLandmarks(landmark, {
-                    radius: (data) => DrawingUtils.lerp(data.from.z, -0.15, 0.1, 5, 1)
-                });
-                drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS);
-            }
-            canvasCtx.restore();
+  // ※既存のキャンバス描画等のコードはそのまま残す
+  canvasElement.style.height = videoHeight;
+  video.style.height = videoHeight;
+  canvasElement.style.width = videoWidth;
+  video.style.width = videoWidth;
+
+  if (runningMode === "IMAGE") {
+    runningMode = "VIDEO";
+    await poseLandmarker.setOptions({ runningMode: "VIDEO" });
+  }
+  let startTimeMs = performance.now();
+  if (lastVideoTime !== video.currentTime) {
+    lastVideoTime = video.currentTime;
+    poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      for (const landmarkSet of result.landmarks) {
+        // 既存の描画処理
+        drawingUtils.drawLandmarks(landmarkSet, {
+          radius: (data) => DrawingUtils.lerp(data.from.z, -0.15, 0.1, 5, 1)
         });
-    }
-    // Call this function again to keep predicting when the browser is ready.
-    if (webcamRunning === true) {
-        window.requestAnimationFrame(predictWebcam);
-    }
+        drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
+
+        // REBA評価に必要な角度を計算
+        const angles = computeREBAAngles(landmarkSet);
+        console.log("REBA angles:", angles);
+
+        // ※ここで必要に応じて、各角度を画面に表示したり、REBAスコア算出ロジックに渡したりできます。
+      }
+      canvasCtx.restore();
+    });
+  }
+  if (webcamRunning === true) {
+    window.requestAnimationFrame(predictWebcam);
+  }
 }
