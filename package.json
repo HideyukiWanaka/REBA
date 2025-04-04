@@ -1,0 +1,7 @@
+{
+  "name": "REBA",
+  "scripts": {
+    "build": "babel src -d lib",
+    "test": "jest"
+  }
+}
