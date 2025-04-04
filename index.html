@@ -28,19 +28,9 @@
     <div id="liveView" class="videoView">
       <button id="webcamButton" class="mdc-button mdc-button--raised">
         <span class="mdc-button__ripple"></span>
-        <span class="mdc-button__label">ENABLE WEBCAM</span>
+        <span class="mdc-button__label">Recording Start</span>
       </button>
-      <!-- ここに録画用のボタンを追加 -->
-      <div id="recordingControls" style="margin-top: 20px;">
-        <button id="recordingStartButton" class="mdc-button mdc-button--raised">
-          <span class="mdc-button__ripple"></span>
-          <span class="mdc-button__label">Recording Start</span>
-        </button>
-        <button id="recordingStopButton" class="mdc-button mdc-button--raised">
-          <span class="mdc-button__ripple"></span>
-          <span class="mdc-button__label">Recording Stop</span>
-        </button>
-      </div>
+     
       <div style="position: relative;">
         <video id="webcam" style="width: 1280px; height: 720px; position: abso" autoplay playsinline></video>
         <canvas class="output_canvas" id="output_canvas" width="1280" height="720" style="position: absolute; left: 0px; top: 0px;"></canvas>
