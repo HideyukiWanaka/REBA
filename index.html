@@ -19,6 +19,82 @@
       <img src="https://assets.codepen.io/9177687/woman-g1af8d3deb_640.jpg" width="100%" crossorigin="anonymous" title="Click to get detection!" />
     </div>
 
+    <div id="calibration" style="margin-top:20px; padding:10px; border:1px solid #ccc;">
+  <h3>REBA 補正設定 (Calibration Settings)</h3>
+  
+  <!-- 頸部回旋 -->
+  <div>
+    <p>頸部回旋 (Neck Rotation)<br>
+      <small>例: 0°＝中立、10°＝軽い回旋、20°＝強い回旋</small>
+    </p>
+    <label><input type="radio" name="neckRotation" value="0" checked> 0°</label>
+    <label><input type="radio" name="neckRotation" value="10"> 10°</label>
+    <label><input type="radio" name="neckRotation" value="20"> 20°</label>
+  </div>
+  
+  <!-- 頸部側屈 -->
+  <div>
+    <p>頸部側屈 (Neck Lateral Bending)<br>
+      <small>例: 0°＝中立、10°＝軽い側屈、20°＝強い側屈</small>
+    </p>
+    <label><input type="radio" name="neckLateralBending" value="0" checked> 0°</label>
+    <label><input type="radio" name="neckLateralBending" value="10"> 10°</label>
+    <label><input type="radio" name="neckLateralBending" value="20"> 20°</label>
+  </div>
+  
+  <!-- 体幹側屈 -->
+  <div>
+    <p>体幹側屈 (Trunk Lateral Flexion)<br>
+      <small>例: 0°＝中立、5°＝軽い側屈、10°＝強い側屈</small>
+    </p>
+    <label><input type="radio" name="trunkLateralFlexion" value="0" checked> 0°</label>
+    <label><input type="radio" name="trunkLateralFlexion" value="5"> 5°</label>
+    <label><input type="radio" name="trunkLateralFlexion" value="10"> 10°</label>
+  </div>
+  
+  <!-- 荷重/力 -->
+  <div>
+    <p>荷重/力 (Load/Force)<br>
+      <small>具体的な重さで評価：例: 5kg＝軽い、10kg＝中程度、15kg＝重い</small>
+    </p>
+    <label><input type="radio" name="loadForce" value="5" checked> 5kg</label>
+    <label><input type="radio" name="loadForce" value="10"> 10kg</label>
+    <label><input type="radio" name="loadForce" value="15"> 15kg</label>
+  </div>
+  
+  <!-- 把持安定性 -->
+  <div>
+    <p>把持安定性 (Coupling)<br>
+      <small>例: 1＝良好（安定したグリップ）、2＝やや不安定（滑りやすい）、3＝不安定（握るのが困難）</small>
+    </p>
+    <label><input type="radio" name="coupling" value="1" checked> 1 (良好)</label>
+    <label><input type="radio" name="coupling" value="2"> 2 (やや不安定)</label>
+    <label><input type="radio" name="coupling" value="3"> 3 (不安定)</label>
+  </div>
+  
+  <!-- 活動性 -->
+  <div>
+    <p>活動性 (Activity Score)<br>
+      <small>例: 1＝低活動（ほぼ静止）、2＝中活動（穏やかな動作）、3＝高活動（急激な動き）</small>
+    </p>
+    <label><input type="radio" name="activityScore" value="1" checked> 1 (低)</label>
+    <label><input type="radio" name="activityScore" value="2"> 2 (中)</label>
+    <label><input type="radio" name="activityScore" value="3"> 3 (高)</label>
+  </div>
+  
+  <!-- 作業姿勢 -->
+  <div>
+    <p>作業姿勢 (Posture Type)<br>
+      <small>例: Standing＝片足/両足支持、Sitting＝座位、Walking＝歩行<br>
+      ※座位・歩行中は膝角度は自動的に1になります</small>
+    </p>
+    <label><input type="radio" name="postureType" value="standing" checked> Standing</label>
+    <label><input type="radio" name="postureType" value="sitting"> Sitting</label>
+    <label><input type="radio" name="postureType" value="walking"> Walking</label>
+  </div>
+  
+</div>
+
     <h2>ABCDemo: Webcam continuous pose landmarks detection</h2>
     <p>
       Stand in front of your webcam to get real-time pose landmarker detection.</br>
