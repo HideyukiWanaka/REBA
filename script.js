@@ -46,7 +46,8 @@ function enableCam(event) {
   const enableWebcamButton = document.getElementById("webcamButton");
   enableWebcamButton.innerText = webcamRunning ? "Stop Recording" : "Recording Start";
 
-  const constraints = { video: true };
+  const constraints = { video: facingMode: ideal:"enviroment"}}
+};
   navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
     video.srcObject = stream;
     video.addEventListener("loadeddata", predictWebcam);
