@@ -12,7 +12,6 @@ const createPoseLandmarker = async () => {
   const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
   poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
-      // "lite" ではなく "full" モデルを使用するためURLを変更
       modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task`,
       delegate: "GPU"
     },
@@ -88,16 +87,18 @@ function angleWithVertical(vector) {
 }
 
 /**
- * MediaPipe Pose のランドマークから、全ての関節角度を算出する関数
- * 撮影側は体幹の前後屈の算出にのみ用い、肩と肘は左右両側で算出します。
+ * MediaPipe Pose のランドマークから、全ての関節角度を算出する関数  
+ * 撮影側は体幹前後屈の算出にのみ用い、肩と肘は左右両側で算出します。
  *
  * 使用するランドマークインデックス：
- *  - 鼻: 0
- *  - 左肩: 11, 左肘: 13, 左手首: 15, 左人差し指: 19, 左股関節: 23, 左膝: 25, 左足首: 27
+ *  - 鼻: 0  
+ *  - 左肩: 11, 左肘: 13, 左手首: 15, 左人差し指: 19, 左股関節: 23, 左膝: 25, 左足首: 27  
  *  - 右肩: 12, 右肘: 14, 右手首: 16, 右人差し指: 20, 右股関節: 24, 右膝: 26, 右足首: 28
  *
+ * さらに、体幹回旋は左右の肩と左右の股関節の角度差から算出します。
+ *
  * @param {Array} landmarks MediaPipe Pose のランドマーク配列
- * @param {string} filmingSide "left" または "right"（体幹計算用に撮影側を指定、初期設定は "left"）
+ * @param {string} filmingSide "left" または "right"（体幹前後屈用に撮影側を指定、初期設定は "left"）
  * @returns {object|null} 各角度を含むオブジェクト（必要なランドマークがなければ null）
  */
 function computeAllAngles(landmarks, filmingSide = "left") {
@@ -134,6 +135,11 @@ function computeAllAngles(landmarks, filmingSide = "left") {
   };
   const trunkFlexionAngle = angleWithVertical(trunkVector);
 
+  // Trunk Rotation Angle: 左右の肩と左右の股関節の線の角度の差
+  const shoulderRotationAngle = Math.atan2(landmarks[12].y - landmarks[11].y, landmarks[12].x - landmarks[11].x) * (180 / Math.PI);
+  const hipRotationAngle = Math.atan2(landmarks[24].y - landmarks[23].y, landmarks[24].x - landmarks[23].x) * (180 / Math.PI);
+  const trunkRotationAngle = shoulderRotationAngle - hipRotationAngle;
+
   // 左肩 Angle: 左肩を頂点に、左股関節と左肘のベクトルのなす角
   const leftShoulderAngle = calculateAngle(landmarks[23], landmarks[11], landmarks[13]);
   // 右肩 Angle: 右肩を頂点に、右股関節と右肘のベクトルのなす角
@@ -157,6 +163,7 @@ function computeAllAngles(landmarks, filmingSide = "left") {
   return {
     neckAngle,
     trunkFlexionAngle,
+    trunkRotationAngle,
     leftShoulderAngle,
     rightShoulderAngle,
     leftElbowAngle,
@@ -182,6 +189,7 @@ function displayAngles(ctx, angles) {
   const lines = [
     `Neck Angle: ${angles.neckAngle.toFixed(1)}°`,
     `Trunk Flexion: ${angles.trunkFlexionAngle.toFixed(1)}°`,
+    `Trunk Rotation: ${angles.trunkRotationAngle.toFixed(1)}°`,
     `Left Shoulder: ${angles.leftShoulderAngle.toFixed(1)}°`,
     `Right Shoulder: ${angles.rightShoulderAngle.toFixed(1)}°`,
     `Left Elbow: ${angles.leftElbowAngle.toFixed(1)}°`,
