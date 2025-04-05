@@ -8,34 +8,41 @@
 <body>
   <h1>REBA評価システム</h1>
   
-  <!-- 補正入力項目（各項目の意味は注釈付き） -->
-  <div id="calibration" style="margin-top:20px; padding:10px; border:1px solid #ccc;">
+  <!-- 補正入力項目 -->
+  <div id="calibration" style="margin:20px; padding:10px; border:1px solid #ccc;">
     <h3>REBA 補正設定</h3>
     
-    <!-- 頸部回旋 -->
+    <!-- 撮影側 -->
+    <div>
+      <p>撮影側 (Filming Side)<br>
+         <small>どちら側から撮影しているかを選択してください</small>
+      </p>
+      <label><input type="radio" name="filmingSide" value="left" checked> Left (左側)</label>
+      <label><input type="radio" name="filmingSide" value="right"> Right (右側)</label>
+    </div>
+    
+    <!-- 頸部 -->
     <div>
       <p>頸部回旋 (Neck Rotation)<br>
-        <small>例: 0°＝中立、10°＝軽い回旋、20°＝強い回旋</small>
+         <small>例: 0°＝中立、10°＝軽い回旋、20°＝強い回旋</small>
       </p>
       <label><input type="radio" name="neckRotation" value="0" checked> 0°</label>
       <label><input type="radio" name="neckRotation" value="10"> 10°</label>
       <label><input type="radio" name="neckRotation" value="20"> 20°</label>
     </div>
-    
-    <!-- 頸部側屈 -->
     <div>
       <p>頸部側屈 (Neck Lateral Bending)<br>
-        <small>例: 0°＝中立、10°＝軽い側屈、20°＝強い側屈</small>
+         <small>例: 0°＝中立、10°＝軽い側屈、20°＝強い側屈</small>
       </p>
       <label><input type="radio" name="neckLateralBending" value="0" checked> 0°</label>
       <label><input type="radio" name="neckLateralBending" value="10"> 10°</label>
       <label><input type="radio" name="neckLateralBending" value="20"> 20°</label>
     </div>
     
-    <!-- 体幹側屈 -->
+    <!-- 体幹 -->
     <div>
       <p>体幹側屈 (Trunk Lateral Flexion)<br>
-        <small>例: 0°＝中立、5°＝軽い側屈、10°＝強い側屈</small>
+         <small>例: 0°＝中立、5°＝軽い側屈、10°＝強い側屈</small>
       </p>
       <label><input type="radio" name="trunkLateralFlexion" value="0" checked> 0°</label>
       <label><input type="radio" name="trunkLateralFlexion" value="5"> 5°</label>
@@ -45,38 +52,82 @@
     <!-- 荷重/力 -->
     <div>
       <p>荷重/力 (Load/Force)<br>
-        <small>具体的な重さで評価：例: 5kg＝軽い、10kg＝中程度、15kg＝重い</small>
+         <small>例: 5kg未満＝0, 5～10kg＝1, 10kg超＝2</small>
       </p>
       <label><input type="radio" name="loadForce" value="5" checked> 5kg</label>
       <label><input type="radio" name="loadForce" value="10"> 10kg</label>
       <label><input type="radio" name="loadForce" value="15"> 15kg</label>
     </div>
     
-    <!-- 把持安定性 -->
+    <!-- 体重支持状態 -->
     <div>
-      <p>把持安定性 (Coupling)<br>
-        <small>例: 1＝良好（安定したグリップ）、2＝やや不安定（滑りやすい）、3＝不安定（握るのが困難）</small>
+      <p>体重支持状態 (Weight Bearing)<br>
+         <small>例: 両足支持＝1, 片足支持＝2</small>
       </p>
-      <label><input type="radio" name="coupling" value="1" checked> 1 (良好)</label>
-      <label><input type="radio" name="coupling" value="2"> 2 (やや不安定)</label>
-      <label><input type="radio" name="coupling" value="3"> 3 (不安定)</label>
+      <label><input type="radio" name="weightBearing" value="both" checked> 両足支持</label>
+      <label><input type="radio" name="weightBearing" value="one"> 片足支持</label>
     </div>
     
-    <!-- 活動性 -->
+    <!-- 上肢補正 -->
     <div>
-      <p>活動性 (Activity Score)<br>
-        <small>例: 1＝低活動（ほぼ静止）、2＝中活動（穏やかな動作）、3＝高活動（急激な動き）</small>
+      <p>上腕の外転/回旋 (Upper Arm Abduction/Rotation)<br>
+         <small>例: なし＝0, あり＝1</small>
       </p>
-      <label><input type="radio" name="activityScore" value="1" checked> 1 (低)</label>
-      <label><input type="radio" name="activityScore" value="2"> 2 (中)</label>
-      <label><input type="radio" name="activityScore" value="3"> 3 (高)</label>
+      <label><input type="radio" name="upperArmCorrection" value="0" checked> なし</label>
+      <label><input type="radio" name="upperArmCorrection" value="1"> あり</label>
+    </div>
+    <div>
+      <p>肩の挙上 (Shoulder Elevation)<br>
+         <small>例: なし＝0, あり＝1</small>
+      </p>
+      <label><input type="radio" name="shoulderElevation" value="0" checked> なし</label>
+      <label><input type="radio" name="shoulderElevation" value="1"> あり</label>
+    </div>
+    <div>
+      <p>重力補助 (Gravity Assistance)<br>
+         <small>例: なし＝0, あり＝-1（減点）</small>
+      </p>
+      <label><input type="radio" name="gravityAssist" value="0" checked> なし</label>
+      <label><input type="radio" name="gravityAssist" value="-1"> あり</label>
+    </div>
+    
+    <!-- 手首補正 -->
+    <div>
+      <p>手首の橈屈/尺屈 (Wrist Radial/Ulnar Deviation)<br>
+         <small>例: なし＝0, あり＝1</small>
+      </p>
+      <label><input type="radio" name="wristCorrection" value="0" checked> なし</label>
+      <label><input type="radio" name="wristCorrection" value="1"> あり</label>
+    </div>
+    
+    <!-- 活動度（各項目別） -->
+    <div>
+      <p>静的姿勢 (Static Posture)<br>
+         <small>例: なし＝0, あり＝1</small>
+      </p>
+      <label><input type="radio" name="staticPosture" value="0" checked> なし</label>
+      <label><input type="radio" name="staticPosture" value="1"> あり</label>
+    </div>
+    <div>
+      <p>小さい反復動作 (Repetitive Movement)<br>
+         <small>例: なし＝0, あり＝1</small>
+      </p>
+      <label><input type="radio" name="repetitiveMovement" value="0" checked> なし</label>
+      <label><input type="radio" name="repetitiveMovement" value="1"> あり</label>
+    </div>
+    <div>
+      <p>速く広い動作/不安定 (Unstable/Fast Movement)<br>
+         <small>例: なし＝0, あり＝1</small>
+      </p>
+      <label><input type="radio" name="unstableMovement" value="0" checked> なし</label>
+      <label><input type="radio" name="unstableMovement" value="1"> あり</label>
     </div>
     
     <!-- 作業姿勢 -->
     <div>
       <p>作業姿勢 (Posture Type)<br>
-        <small>例: Standing＝片足/両足支持、Sitting＝座位、Walking＝歩行<br>
-          ※座位・歩行時は膝角度は自動的に1として扱います</small>
+         <small>例: Standing＝立位、Sitting＝座位、Walking＝歩行<br>
+          ※座位・歩行時は下肢スコアは1固定</small>
       </p>
       <label><input type="radio" name="postureType" value="standing" checked> Standing</label>
       <label><input type="radio" name="postureType" value="sitting"> Sitting</label>
