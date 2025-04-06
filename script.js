@@ -23,23 +23,47 @@ async function initPoseLandmarker() {
 }
 initPoseLandmarker();
 
-// 要素取得
+// getUserMediaサポートの確認
+function hasGetUserMedia() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+// videoとcanvas要素の取得
 const video = document.getElementById("webcam");
 const canvasElement = document.getElementById("output_canvas");
 const canvasCtx = canvasElement.getContext("2d");
 const drawingUtils = new DrawingUtils(canvasCtx);
 
-// Webカメラ起動
-document.getElementById("webcamButton").addEventListener("click", () => {
-  if (!poseLandmarker) return;
-  webcamRunning = !webcamRunning;
-  document.getElementById("webcamButton").innerText = webcamRunning ? "Stop Recording" : "Recording Start";
+// enableCam関数（公式コードに準じた実装）
+function enableCam() {
+  if (!hasGetUserMedia()) {
+    console.warn("getUserMedia() is not supported by your browser");
+    return;
+  }
+  if (!poseLandmarker) {
+    console.log("Model not loaded yet, please wait...");
+    return;
+  }
   navigator.mediaDevices.getUserMedia({ video: true })
     .then((stream) => {
       video.srcObject = stream;
       video.addEventListener("loadeddata", predictWebcam);
     })
-    .catch((err) => console.error(err));
+    .catch((err) => console.error("Error accessing webcam:", err));
+}
+
+// ボタンのイベントリスナーを設定（enableCamを呼び出す）
+document.getElementById("webcamButton").addEventListener("click", () => {
+  if (!poseLandmarker) {
+    console.log("Model not loaded yet, please wait...");
+    return;
+  }
+  webcamRunning = !webcamRunning;
+  document.getElementById("webcamButton").innerText = webcamRunning ? "Stop Recording" : "Recording Start";
+  // カメラ起動（既にストリームがあれば再取得しない）
+  if (webcamRunning) {
+    enableCam();
+  }
 });
 
 // ===== 角度計算ユーティリティ =====
@@ -209,7 +233,6 @@ function getScoreA(trunk, neck, leg, loadKg) {
 }
 
 // Table B: キー "U,F,W" (上腕, 前腕, 手首)
-// 上腕: 1～6, 前腕: 1～2, 手首: 1～3 として ScoreB = (上腕 + 前腕 + 手首) - 2 を基本計算する
 const tableB_Lookup = {
   "1,1,1": 1, "1,1,2": 2, "1,1,3": 2,
   "1,2,1": 1, "1,2,2": 2, "1,2,3": 3,
