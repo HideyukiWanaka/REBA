@@ -59,13 +59,23 @@
       <label><input type="radio" name="loadForce" value="15"> 15kg</label>
     </div>
     
-    <!-- 体重支持状態 -->
+    <!-- 作業姿勢（統合：体重支持状態＋作業姿勢） -->
     <div>
-      <p>体重支持状態 (Weight Bearing)<br>
-         <small>例: 両足支持＝1, 片足支持＝2</small>
+      <p>作業姿勢 (Posture Category)<br>
+         <small>例: Standing (両足支持)=安定、Standing (片足支持)=不安定、Sitting/Walking＝座位/歩行（膝角度は1固定）</small>
       </p>
-      <label><input type="radio" name="weightBearing" value="both" checked> 両足支持</label>
-      <label><input type="radio" name="weightBearing" value="one"> 片足支持</label>
+      <label>
+        <input type="radio" name="postureCategory" value="standingBoth" checked>
+        Standing (両足支持)
+      </label>
+      <label>
+        <input type="radio" name="postureCategory" value="standingOne">
+        Standing (片足支持)
+      </label>
+      <label>
+        <input type="radio" name="postureCategory" value="sittingWalking">
+        Sitting/Walking
+      </label>
     </div>
     
     <!-- 上肢補正 -->
@@ -123,25 +133,22 @@
       <label><input type="radio" name="unstableMovement" value="1"> あり</label>
     </div>
     
-    <!-- 作業姿勢 -->
+    <!-- Coupling 補正 -->
     <div>
-      <p>作業姿勢 (Posture Type)<br>
-         <small>例: Standing＝立位、Sitting＝座位、Walking＝歩行<br>
-          ※座位・歩行時は下肢スコアは1固定</small>
+      <p>Coupling（把持安定性）<br>
+         <small>例: 1～3</small>
       </p>
-      <label><input type="radio" name="postureType" value="standing" checked> Standing</label>
-      <label><input type="radio" name="postureType" value="sitting"> Sitting</label>
-      <label><input type="radio" name="postureType" value="walking"> Walking</label>
+      <label><input type="radio" name="coupling" value="1" checked> 1</label>
+      <label><input type="radio" name="coupling" value="2"> 2</label>
+      <label><input type="radio" name="coupling" value="3"> 3</label>
     </div>
   </div>
   
   <!-- Webカメラ映像 -->
-  <div id="liveView" class="videoView" style="margin-top:20px;">
-    <button id="webcamButton" class="mdc-button mdc-button--raised">Recording Start</button>
-    <div style="position: relative;">
-      <video id="webcam" autoplay playsinline style="width: 1280px; height: 720px;"></video>
-      <canvas id="output_canvas" style="position: absolute; left: 0; top: 0;" width="1280" height="720"></canvas>
-    </div>
+  <div id="liveView" style="margin-top:20px;">
+    <button id="webcamButton">Recording Start</button>
+    <video id="webcam" autoplay playsinline style="width: 1280px; height: 720px;"></video>
+    <canvas id="output_canvas" width="1280" height="720" style="position: absolute; left: 0; top: 0;"></canvas>
   </div>
   
   <script type="module" src="./script.js"></script>
