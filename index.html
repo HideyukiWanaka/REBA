@@ -135,19 +135,26 @@
     
     <!-- Coupling 補正 -->
  <div>
-  <h3>持ちやすさスコアの例</h3>
-  <ul>
-    <li>0点：フィットしていてしっかり握れる（良好）</li>
-    <li>1点：許容範囲内だが理想的ではない（普通）</li>
-    <li>2点：握れるが、許容範囲外（不良）</li>
-    <li>3点：不自然な握りまたは握れない（許容不可）</li>
-  </ul>
-  ‹label><input type="radio"
-name="coupling" value="1" checked> 1</ label>
-<label><input type="radio"
-name="coupling" value="2"> 2</label >
-‹label><input type="radio"
-name="coupling" value="3"> 3</label >
+  <p>持ちやすさスコア (Grip Ease Score):</p>
+  <label>
+    <input type="radio" name="gripScore" value="0" checked>
+    0点 (良好) – 例: よくフィットしていて、しっかり握れる状態
+  </label>
+  <br>
+  <label>
+    <input type="radio" name="gripScore" value="1">
+    1点 (普通) – 例: 許容範囲内だが、理想的とは言えず体の他部位を補助すれば握れる状態
+  </label>
+  <br>
+  <label>
+    <input type="radio" name="gripScore" value="2">
+    2点 (不良) – 例: 握れるが、明らかに持ちにくい状態
+  </label>
+  <br>
+  <label>
+    <input type="radio" name="gripScore" value="3">
+    3点 (許容不可) – 例: 不自然な握り、またはほとんど握れず体の他部位を使わなければ持てない状態
+  </label>
 </div>
   
   <!-- Webカメラ映像 -->
