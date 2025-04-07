@@ -408,18 +408,21 @@ async def compute_reba_endpoint(input_data: REBAInput):
 # -----------------------------
 # !! デプロイ後にフロントエンドのURLに合わせて origins を設定してください !!
 origins = [
-    "https://reba-cgph.onrender.com", # ローカルテスト用 (もしあれば)
-    "https://reba-1.onrender.com", # ローカルテスト用 (もしあれば)
-    # "https://your-reba-frontend-static-site-name.onrender.com", # Render Static Site URL例
+    "http://localhost", # ローカルテスト用 (残しておいても良い)
+    "http://127.0.0.1", # ローカルテスト用 (残しておいても良い)
+    # ↓↓↓ ここに Render でデプロイした「静的サイト」のURLを追加・変更します ↓↓↓
+    "https://reba-1.onrender.com", # 例: スクリーンショットに表示されていたURL (これがフロントエンド用か確認してください)
+    # "https://your-reba-frontend-static-site-name.onrender.com", # Render Static Site URL の正しい形式の例
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins, # ★ このリストにフロントエンドのURLが含まれている必要があります
     allow_credentials=True,
-    allow_methods=["POST", "GET"], # 必要なメソッドを指定 (POSTだけで良いかも)
-    allow_headers=["*"],
+    allow_methods=["POST", "GET"], # APIで使うHTTPメソッドを許可
+    allow_headers=["*"], # すべてのリクエストヘッダーを許可
 )
+
 
 # -----------------------------
 # (オプション) ルートエンドポイント
