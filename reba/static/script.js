@@ -133,7 +133,7 @@ webcamButton.addEventListener("click", () => {
     }
     // Canvasをクリア
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
+/*
     // ★ 最大スコアとリスクレベルを表示 ★
     const maxRiskLevel = getRiskLevelText(maxRebaScore); // ヘルパー関数でリスクレベル取得
     if (scoreDisplay) {
@@ -146,8 +146,10 @@ webcamButton.addEventListener("click", () => {
         scoreDisplay.innerHTML = "評価停止中 (有効なスコアなし)";
       }
     }
-    console.log(`Session stopped. Max REBA score was: ${maxRebaScore}`);
+    console.log(`Session stopped. Max REBA score was: ${maxRebaScore}`);*/
     // predictWebcamループは webcamRunning フラグにより自動停止する
+    if(scoreDisplay)
+    scoreDisplay.innerHTML = "評価停止中"
   }
 });
 
