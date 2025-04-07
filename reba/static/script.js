@@ -252,7 +252,7 @@ async function predictWebcam() {
           };
 
           // !! 重要: デプロイ後にバックエンドURLに書き換えてください !!
-          const apiUrl = "https://reba-cgph.onrender.com"; // ローカル開発用
+          const apiUrl = "https://your-backend-name.onrender.com/compute_reba"; // ローカル開発用
           // const apiUrl = "https://your-backend-name.onrender.com/compute_reba"; // Renderデプロイ後のURL例
 
           // バックエンドAPIにPOSTリクエストを送信
