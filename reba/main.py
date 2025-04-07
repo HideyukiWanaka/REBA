@@ -408,7 +408,7 @@ async def compute_reba_endpoint(input_data: REBAInput):
 # -----------------------------
 # !! デプロイ後にフロントエンドのURLに合わせて origins を設定してください !!
 origins = [
-    "http://localhost", # ローカルテスト用 (もしあれば)
+    "https://reba-cgph.onrender.com", # ローカルテスト用 (もしあれば)
     "http://127.0.0.1", # ローカルテスト用 (もしあれば)
     # "https://your-reba-frontend-static-site-name.onrender.com", # Render Static Site URL例
 ]
