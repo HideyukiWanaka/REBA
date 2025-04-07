@@ -1,4 +1,4 @@
-// static/script.js
+// static/script.js (最大スコア表示機能を追加する前のバージョン)
 
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
 
@@ -9,7 +9,7 @@ let webcamRunning = false;
 let lastApiCallTime = 0;
 const apiCallInterval = 500; // ms
 let lastVideoTime = -1;
-let maxRebaScore = 0; // セッション中の最大REBAスコア
+// --- maxRebaScore 変数を削除 ---
 
 // --- DOM要素 ---
 const video = document.getElementById("webcam");
@@ -23,7 +23,7 @@ const webcamButton = document.getElementById("webcamButton");
 let rebaChart = null; // Chart.js インスタンス (初期値 null)
 const chartDataPoints = 60; // グラフに表示する最大データ点数
 const chartData = {
-  labels: [],
+  labels: [], // X軸ラベル
   datasets: [
     { label: 'REBA Total', data: [], borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.1)', tension: 0.1, pointRadius: 0 },
     { label: 'Score A', data: [], borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgba(54, 162, 235, 0.1)', tension: 0.1, pointRadius: 0 },
@@ -46,18 +46,18 @@ async function initPoseLandmarker() {
     console.log("Resolver fetched. Creating PoseLandmarker (full)...");
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        // ★ Fullモデルのパスを使用 ★
+        // Fullモデルのパスを使用
         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
         delegate: "GPU"
       },
       runningMode: "VIDEO", numPoses: 1,
     });
     console.log("PoseLandmarker created successfully.");
-    initChart(); // ★ グラフ初期化をここに移動 ★
+    initChart(); // グラフ初期化呼び出し
     webcamButton.disabled = false; webcamButton.innerText = "Recording Start";
     if (scoreDisplay) scoreDisplay.innerHTML = "モデル準備完了。ボタンを押して開始してください。";
   } catch (error) {
-    // ... (エラーハンドリングは変更なし) ...
+    // ... (エラーハンドリング) ...
     console.error("Failed to initialize PoseLandmarker:", error);
     webcamButton.disabled = true; webcamButton.innerText = "Load Failed";
     let errorMsg = `モデル初期化失敗: ${error.message}`;
@@ -70,23 +70,16 @@ async function initPoseLandmarker() {
  * グラフを初期化
  */
 function initChart() {
-  // すでに初期化済みの場合は何もしない（安全策）
-  if (rebaChart) { return; }
+  if (rebaChart) { return; } // 二重初期化防止
   try {
     const ctx = document.getElementById('rebaChart').getContext('2d');
     if (!ctx) { console.error("Chart canvas element 'rebaChart' not found."); return; }
     rebaChart = new Chart(ctx, {
       type: 'line', data: chartData,
-      options: {
-          responsive: true, maintainAspectRatio: false,
-          scales: { /* ... 軸設定 ... */ }, animation: { duration: 0 }, plugins: { /* ... 凡例など ... */ }
-      }
+      options: { responsive: true, maintainAspectRatio: false, /* ... 他のオプション ... */ }
     });
     console.log("Chart initialized successfully.");
-  } catch(e) {
-      console.error("Failed to initialize chart:", e);
-      if(scoreDisplay) scoreDisplay.innerHTML += "<p style='color:red;'>グラフの初期化に失敗しました。</p>";
-  }
+  } catch(e) { /* ... エラーハンドリング ... */ }
 }
 
 /**
@@ -94,29 +87,24 @@ function initChart() {
  * @param {object} apiData APIからのレスポンスデータ
  */
 function updateChart(apiData) {
-  // グラフ未初期化 or データ不足 or intermediate_scoresがない場合は更新しない
-  if (!rebaChart || !apiData || !apiData.intermediate_scores) {
-     console.warn("Chart update skipped. Chart not ready or data missing intermediate_scores.", apiData);
-     return;
-  }
-  try {
-    const newLabel = chartData.labels.length > 0 ? Number(chartData.labels[chartData.labels.length - 1]) + 1 : 1;
-    // データ点数制限
-    while (chartData.labels.length >= chartDataPoints) {
-      chartData.labels.shift();
-      chartData.datasets.forEach(dataset => { dataset.data.shift(); });
-    }
-    // データ追加
-    chartData.labels.push(newLabel);
-    // ★ data.intermediate_scoresが存在するか確認してからアクセス ★
-    chartData.datasets[0].data.push(apiData.final_score ?? null); // nullish coalescing で安全に
-    chartData.datasets[1].data.push(apiData.intermediate_scores.scoreA ?? null);
-    chartData.datasets[2].data.push(apiData.intermediate_scores.scoreB ?? null);
-
-    rebaChart.update(); // グラフ再描画
-  } catch(e) {
-      console.error("Failed to update chart data:", e, apiData);
-  }
+    // グラフ未初期化 or データ不足 or intermediate_scoresがない場合は更新しない
+    if (!rebaChart || !apiData || !apiData.intermediate_scores) {
+        console.warn("Chart update skipped.", {chart: !!rebaChart, data: apiData});
+        return;
+     }
+     try {
+        const newLabel = chartData.labels.length > 0 ? Number(chartData.labels[chartData.labels.length - 1]) + 1 : 1;
+        while (chartData.labels.length >= chartDataPoints) {
+            chartData.labels.shift();
+            chartData.datasets.forEach(dataset => { dataset.data.shift(); });
+        }
+        // 安全なアクセスとnull設定
+        chartData.labels.push(newLabel);
+        chartData.datasets[0].data.push(apiData.final_score ?? null);
+        chartData.datasets[1].data.push(apiData.intermediate_scores.scoreA ?? null); // intermediate_scoresの存在は上で確認済み
+        chartData.datasets[2].data.push(apiData.intermediate_scores.scoreB ?? null);
+        rebaChart.update();
+     } catch(e) { console.error("Failed to update chart data:", e, apiData); }
 }
 
 /**
@@ -128,73 +116,45 @@ function hasGetUserMedia() { return !!(navigator.mediaDevices && navigator.media
  * Webカメラを有効化 (環境カメラ要求)
  */
 function enableCam() {
-  if (!hasGetUserMedia()) { /*...*/ return; }
-  if (!poseLandmarker) { /*...*/ return; }
-  // ★ 環境カメラを要求 ★
-  const constraints = { video: { facingMode: "environment" } };
-  console.log("Requesting camera with constraints:", constraints);
-  navigator.mediaDevices.getUserMedia(constraints)
-    .then((stream) => {
-      video.srcObject = stream;
-      // ... (ログ、loadeddataリスナー) ...
-      video.addEventListener("loadeddata", () => {
-          canvasElement.width = video.videoWidth;
-          canvasElement.height = video.videoHeight;
-          lastVideoTime = -1;
-          if (webcamRunning) { requestAnimationFrame(predictWebcam); }
-      }, { once: true });
-    })
-    .catch((err) => { /* ... (エラーハンドリング) ... */ });
-}
+    if (!hasGetUserMedia()) { /*...*/ return; }
+    if (!poseLandmarker) { /*...*/ return; }
+    const constraints = { video: { facingMode: "environment" } }; // 環境カメラ
+    console.log("Requesting camera with constraints:", constraints);
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+            video.srcObject = stream;
+            video.addEventListener("loadeddata", () => {
+                canvasElement.width = video.videoWidth;
+                canvasElement.height = video.videoHeight;
+                lastVideoTime = -1;
+                if (webcamRunning) { requestAnimationFrame(predictWebcam); }
+            }, { once: true });
+        })
+        .catch((err) => { /* ... (エラーハンドリング) ... */ });
+ }
 
-/**
- * REBAスコアからリスクレベル文字列を取得
- */
-function getRiskLevelText(score) {
-  if (score === null || score === undefined || score <= 0) return "N/A";
-  if (score === 1) return "無視できる (Negligible)";
-  if (score <= 3) return "低リスク (Low)";
-  if (score <= 7) return "中リスク (Medium)";
-  if (score <= 10) return "高リスク (High)";
-  return "非常に高リスク (Very High)";
-}
+// --- getRiskLevelText 関数を削除 ---
 
-// --- ★ 開始/停止ボタンのイベントリスナー (修正) ★ ---
+// --- ボタンのイベントリスナー (最大スコア関連処理を削除) ---
 webcamButton.addEventListener("click", () => {
   webcamRunning = !webcamRunning;
   webcamButton.innerText = webcamRunning ? "Stop Recording" : "Recording Start";
 
   if (webcamRunning) {
-    // --- 開始時 ---
-    maxRebaScore = 0; // 最大スコアをリセット
+    // --- 開始時 (シンプルに) ---
     if(scoreDisplay) scoreDisplay.innerHTML = "カメラを起動中...";
-
-    // ★ グラフデータを安全にリセット ★
-    chartData.labels = []; // データ配列を空にする
-    chartData.datasets.forEach(dataset => { dataset.data = []; });
-    if (rebaChart) { // グラフオブジェクトが存在すればupdateを呼ぶ
-        rebaChart.update();
-    } else {
-        // もしinitChartがまだ呼ばれていなくても、データは空になっている
-        console.warn("Chart not initialized yet when trying to reset data.");
-    }
-
-    enableCam(); // カメラ有効化と予測ループ開始
+    // グラフリセット処理も削除 (グラフは継続表示される)
+    enableCam();
   } else {
-    // --- 停止時 ---
-    if (video.srcObject) { /* ... カメラ停止 ... */ }
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-    // ★ 最大スコア表示 (変更なし) ★
-    const maxRiskLevel = getRiskLevelText(maxRebaScore);
-    if (scoreDisplay) {
-      if (maxRebaScore > 0) {
-        scoreDisplay.innerHTML = `<h3>評価終了</h3><p>今回の最大REBAスコア: <strong style="font-size: 1.2em;">${maxRebaScore}</strong></p><p>対応リスクレベル: <strong style="font-size: 1.1em;">${maxRiskLevel}</strong></p>`;
-      } else {
-        scoreDisplay.innerHTML = "評価停止中 (有効なスコアなし)";
-      }
+    // --- 停止時 (シンプルに) ---
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+      console.log("Webcam stream stopped.");
     }
-    console.log(`Session stopped. Max REBA score was: ${maxRebaScore}`);
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    // ★ シンプルな停止メッセージに戻す ★
+    if (scoreDisplay) scoreDisplay.innerHTML = "評価停止中";
   }
 });
 
@@ -202,7 +162,7 @@ webcamButton.addEventListener("click", () => {
 function getCalibrationInputs() { /* ... */ }
 
 /**
- * メインループ (最大スコア更新処理あり)
+ * メインループ (最大スコア更新処理を削除)
  */
 async function predictWebcam() {
   if (!webcamRunning) return;
@@ -230,20 +190,17 @@ async function predictWebcam() {
           const apiUrl = "https://reba-cgph.onrender.com/compute_reba";
           console.log("Calling API:", apiUrl);
 
-          try { // fetchを含むtry-catchを追加(stringifyエラー等の捕捉)
+          try {
               const jsonPayload = JSON.stringify(payload);
               fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
               .then(response => { /* ... */ return response.json(); })
               .then(data => {
-                 console.log("API success data:", data);
-                 // ★ 最大スコア更新 ★
-                 if (data && data.final_score !== null && data.final_score !== undefined && data.final_score > maxRebaScore) {
-                   maxRebaScore = data.final_score;
-                   console.log(`New max REBA score recorded: ${maxRebaScore}`);
-                 }
-                 // 現在スコア表示
+                 console.log("API success data:", data); // Keep this log!
+
+                 // --- 最大スコア更新処理を削除 ---
+
+                 // 現在スコア表示更新
                  if (scoreDisplay && webcamRunning) {
-                   // dataが存在し、必要なキーがあるか確認(より安全に)
                    const score = data?.final_score ?? 'N/A';
                    const risk = data?.risk_level ?? 'N/A';
                    scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
@@ -252,10 +209,7 @@ async function predictWebcam() {
                  if (webcamRunning) { updateChart(data); }
               })
               .catch(err => { /* ... エラーハンドリング ... */ });
-          } catch (stringifyError) {
-              console.error("Error stringifying payload:", stringifyError, payload);
-              if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データの作成失敗</p>`; }
-          }
+          } catch (stringifyError) { /* ... */ }
         } // --- スロットリング終了 ---
       } // --- ランドマーク処理終了 ---
     }); // --- detectForVideo コールバック終了 ---
