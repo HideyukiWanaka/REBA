@@ -37,7 +37,7 @@ async function initPoseLandmarker() {
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
         // Liteモデルを使用 (ネットワーク負荷軽減のため)
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
         delegate: "GPU" // デフォルトはGPU (問題があれば "CPU" も試す価値あり)
       },
       runningMode: "VIDEO",
