@@ -3,10 +3,10 @@
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
 
 let poseLandmarker;
-let runningMode = "VIDEO"; // (4) "VIDEO" で初期化
+let runningMode = "VIDEO"; // "VIDEO" で初期化
 let webcamRunning = false;
-let lastApiCallTime = 0; // (3) APIスロットリング用
-const apiCallInterval = 500; // (3) API呼び出し間隔 (ms)
+let lastApiCallTime = 0; // APIスロットリング用
+const apiCallInterval = 500; // API呼び出し間隔 (ms)
 let lastVideoTime = -1; // predictWebcam の重複実行防止用
 
 // DOM要素を取得
@@ -94,9 +94,16 @@ function enableCam() {
     return;
   }
 
-  // カメラへのアクセス制約 (デフォルトカメラを要求 - facingMode指定なし)
-  const constraints = { video: true };
-  console.log("Requesting camera with constraints:", constraints);
+  // ★ カメラへのアクセス制約 (環境カメラを要求) ★
+  const constraints = {
+    video: {
+      facingMode: "environment"
+      // 必要であれば他の制約も追加
+      // width: { ideal: 1280 },
+      // height: { ideal: 720 }
+    }
+  };
+  console.log("Requesting camera with constraints:", constraints); // 要求する制約をログに出力
 
   // getUserMediaでカメラアクセスを要求
   navigator.mediaDevices.getUserMedia(constraints)
@@ -108,6 +115,12 @@ function enableCam() {
       if (track) {
         const settings = track.getSettings();
         console.log("Actual camera settings obtained:", settings);
+         // facingModeが実際にenvironmentになったか確認
+         if (settings.facingMode) {
+             console.log(`Using camera facing: ${settings.facingMode}`);
+         } else {
+             console.log("Facing mode could not be determined or is not 'environment'.");
+         }
       }
 
       // ビデオのメタデータが読み込まれたら、Canvasサイズを設定し予測ループ開始
@@ -128,7 +141,7 @@ function enableCam() {
       let userErrorMessage = `Webカメラにアクセスできません (${err.message})`;
       // エラーの種類に応じてメッセージを具体化
       if (err.name === 'OverconstrainedError') {
-          userErrorMessage = `要求されたカメラ設定がサポートされていません。(${err.message})`;
+          userErrorMessage = `要求されたカメラ設定（特に環境カメラ）がサポートされていないか、見つかりません。(${err.message})`; // メッセージを少し変更
       } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
            userErrorMessage = `カメラへのアクセスが許可されませんでした。ブラウザやOSの設定を確認してください。`;
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -173,6 +186,7 @@ webcamButton.addEventListener("click", () => {
  * @returns {object} キャリブレーション設定値を含むオブジェクト
  */
 function getCalibrationInputs() {
+  // この関数は変更なし
   return {
     filmingSide: document.querySelector('input[name="filmingSide"]:checked').value,
     neckRotation: Number(document.querySelector('input[name="neckRotation"]:checked').value),
@@ -195,12 +209,12 @@ function getCalibrationInputs() {
  * Webカメラ映像から姿勢を推定し、結果を描画・API送信するメインループ関数
  */
 async function predictWebcam() {
-  // webcamRunning フラグが false になっていたらループを終了
+  // webcamRunning フラグが false ならループを即時終了
   if (!webcamRunning) {
     return;
   }
 
-  // ビデオの再生状態とフレーム更新を確認
+  // ビデオの準備ができているか、新しいフレームかを確認
   // video.readyState >= 2 は HAVE_CURRENT_DATA かそれ以上を示す
   if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime; // 現在のフレーム時間を記録
