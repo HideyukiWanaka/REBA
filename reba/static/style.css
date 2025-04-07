@@ -1,3 +1,5 @@
+/* static/style.css (最終調整版) */
+
 /* Basic Reset & Body Styles */
 * {
   box-sizing: border-box;
@@ -7,14 +9,13 @@
 
 body {
   font-family: 'Roboto', sans-serif;
-  margin: 1em; /* Reduced margin */
+  margin: 1em;
   color: #3d3d3d;
-  background-color: #f4f4f4; /* Light background */
+  background-color: #f4f4f4;
   line-height: 1.6;
-  /* Material Design Color Variables (optional, used below) */
-  --mdc-theme-primary: #007f8b; /* Tealish */
+  --mdc-theme-primary: #007f8b;
   --mdc-theme-on-primary: #ffffff;
-  --mdc-theme-error: #b00020; /* Red for errors */
+  --mdc-theme-error: #b00020;
 }
 
 h1, h3 {
@@ -28,89 +29,50 @@ h1 {
 
 /* Calibration Section Styling */
 #calibration {
-  margin: 20px auto; /* Centered margin */
+  margin: 20px auto;
   padding: 20px;
   border: 1px solid #ccc;
-  border-radius: 8px; /* Rounded corners */
+  border-radius: 8px;
   background-color: #ffffff;
-  max-width: 800px; /* Limit width for readability */
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+  max-width: 800px; /* 横幅制限 */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-#calibration > div {
-    margin-bottom: 15px; /* Spacing between items */
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee; /* Separator */
-}
-#calibration > div:last-child {
-    border-bottom: none; /* Remove last separator */
-}
-#calibration p {
-    margin: 0 0 8px 0;
-    font-weight: bold;
-    font-size: 1em;
-    color: #333;
-}
-#calibration small {
-    display: block; /* Ensure it takes its own line */
-    font-weight: normal;
-    color: #555;
-    font-size: 0.9em;
-    margin-bottom: 5px;
-}
-#calibration label {
-    margin-right: 20px; /* Spacing between radio buttons */
-    display: inline-block; /* Layout control */
-    cursor: pointer;
-    font-size: 0.95em;
-}
-#calibration input[type="radio"] {
-    margin-right: 5px;
-    vertical-align: middle; /* Align radio with text */
-}
-#calibration ul {
-    list-style: disc;
-    margin-left: 20px;
-    margin-top: 5px;
-    color: #555;
-}
-#calibration li {
-    margin-bottom: 3px;
-}
-
+#calibration > div { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+#calibration > div:last-child { border-bottom: none; }
+#calibration p { margin: 0 0 8px 0; font-weight: bold; font-size: 1em; color: #333; }
+#calibration small { display: block; font-weight: normal; color: #555; font-size: 0.9em; margin-bottom: 5px; }
+#calibration label { margin-right: 20px; display: inline-block; cursor: pointer; font-size: 0.95em; }
+#calibration input[type="radio"] { margin-right: 5px; vertical-align: middle; }
+#calibration ul { list-style: disc; margin-left: 20px; margin-top: 5px; color: #555; }
+#calibration li { margin-bottom: 3px; }
 
 /* Results Section Styling */
 #results {
-  margin: 20px auto; /* Centered margin */
+  margin: 20px auto;
   padding: 15px;
   border: 1px solid #ccc;
   border-radius: 8px;
   background-color: #ffffff;
-  max-width: 800px;
+  max-width: 800px; /* 横幅制限 */
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  min-height: 80px; /* Ensure minimum height */
+  min-height: 80px;
 }
-#results p {
-    margin: 8px 0;
-    font-size: 1.1em;
-    font-weight: bold;
-}
-#scoreDisplay p[style*="color: red"] { /* Style for error messages */
-    color: var(--mdc-theme-error) !important;
-    font-weight: bold;
-}
+#results p { margin: 8px 0; font-size: 1.1em; font-weight: bold; }
+#scoreDisplay p[style*="color: red"] { color: var(--mdc-theme-error) !important; font-weight: bold; }
 
 
 /* Live View (Video/Canvas Container) Styling */
 #liveView {
-  margin: 20px auto; /* Centered margin */
-  position: relative; /* Crucial for positioning button and canvas */
-  width: 90%; /* Responsive width */
-  max-width: 1024px; /* Max sensible width */
-  aspect-ratio: 1 / 1; /* Maintain aspect ratio */
-  background-color: #333; /* Dark background while loading */
+  margin: 20px auto;
+  position: relative;
+  width: 90%; /* 横幅は画面幅の90% */
+  max-width: 800px; /* 最大横幅を指定 */
+  /* ★★★ アスペクト比を 1 / 1 (正方形) に設定 ★★★ */
+  aspect-ratio: 1 / 1;
+  background-color: #333;
   border: 1px solid #555;
-  border-radius: 8px; /* Match other sections */
-  overflow: hidden; /* Hide anything sticking out */
+  border-radius: 8px;
+  overflow: hidden;
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
@@ -119,7 +81,7 @@ h1 {
     position: absolute;
     top: 15px;
     left: 15px;
-    z-index: 10; /* Ensure button is above video/canvas */
+    z-index: 10;
     padding: 10px 15px;
     background-color: var(--mdc-theme-primary);
     color: var(--mdc-theme-on-primary);
@@ -129,27 +91,20 @@ h1 {
     font-size: 1em;
     transition: background-color 0.2s ease;
 }
-#webcamButton:hover:not(:disabled) {
-    background-color: #005f6b; /* Darker shade on hover */
-}
-#webcamButton:disabled {
-    background-color: #aaa;
-    cursor: not-allowed;
-}
+#webcamButton:hover:not(:disabled) { background-color: #005f6b; }
+#webcamButton:disabled { background-color: #aaa; cursor: not-allowed; }
+
 
 /* Video Element Styling */
 video#webcam {
-  display: block; /* Remove extra space below */
+  display: block;
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  /* Mirror the video feed */
-  /*transform: rotateY(180deg);
-  -webkit-transform: rotateY(180deg);
-  -moz-transform: rotateY(180deg);*/
-  object-fit: cover; /* Fill container, potentially cropping */
+  /* ★★★ transform: rotateY(180deg) を削除 (左右反転解除) ★★★ */
+  object-fit: cover;
 }
 
 /* Canvas Overlay Styling */
@@ -159,36 +114,32 @@ canvas#output_canvas {
   top: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none; /* Allow interactions with elements below if any */
-  z-index: 5; /* Place it above video, below button */
-  /* Mirror the canvas to match the video */
-  /*transform: rotateY(180deg);
-  -webkit-transform: rotateY(180deg);
-  -moz-transform: rotateY(180deg);*/
+  pointer-events: none;
+  z-index: 5;
+  /* ★★★ transform: rotateY(180deg) を削除 (左右反転解除) ★★★ */
 }
 
 
-/* Utility Classes (Kept) */
-.removed {
-  display: none;
-}
-.invisible {
-  opacity: 0.2;
-  transition: opacity 500ms ease-in-out;
-}
-
-/* style.css 内 */
-
+/* Chart Container Styling */
 #chartContainer {
-  /* ... 他のスタイル ... */
-  /* ★ アスペクト比をより横長に変更 (例: 2/1) ★ */
-  aspect-ratio: 1 / 1; /* この比率(2 / 1)を調整して高さを変更 */
-  /*aspect-ratio: 16 / 7; /* さらに横長にする場合の例 */
-  height: 300px; /* heightはautoのまま */
-  /* ... 他のスタイル ... */
+  margin: 20px auto;
+  max-width: 800px; /* 横幅を他の要素と合わせる */
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  /* ★★★ 固定の高さを指定 (この値を調整してください) ★★★ */
+  height: 350px; /* 例: グラフの高さを350pxに指定 */
+  /* aspect-ratio の指定は削除 */
+}
+#rebaChart {
+    max-width: 100%;
+    /* height はChart.jsと親要素のheight指定に依存 */
 }
 
 
+/* Utility Classes (Keep) */
+.removed { display: none; }
+.invisible { opacity: 0.2; transition: opacity 500ms ease-in-out; }
 
 /* --- Unused Rules Removed --- */
-
