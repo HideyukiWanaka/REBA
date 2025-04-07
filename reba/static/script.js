@@ -47,7 +47,6 @@ function hasGetUserMedia() {
 }
 
 // Webカメラ有効化関数
-// Webカメラ有効化関数
 function enableCam() {
   if (!hasGetUserMedia()) {
     console.warn("getUserMedia() is not supported by your browser");
@@ -67,7 +66,7 @@ function enableCam() {
   const constraints = {
     video: {
       // facingMode に "environment" を指定して背面カメラを要求
-      facingMode: "environment"
+      //facingMode: "environment"
       // 必要であれば他の制約（解像度など）も追加できます
       // width: { ideal: 1280 },
       // height: { ideal: 720 }
