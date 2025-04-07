@@ -22,7 +22,7 @@ async function initPoseLandmarker() {
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath:
-          "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+          "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
         delegate: "GPU"
       },
       runningMode, // "VIDEO" で初期化された値を使用
@@ -66,7 +66,7 @@ function enableCam() {
   const constraints = {
     video: {
       // facingMode に "environment" を指定して背面カメラを要求
-      //facingMode: "environment"
+      facingMode: "environment"
       // 必要であれば他の制約（解像度など）も追加できます
       // width: { ideal: 1280 },
       // height: { ideal: 720 }
