@@ -177,11 +177,17 @@ canvas#output_canvas {
   transition: opacity 500ms ease-in-out;
 }
 
+/* style.css 内 */
+
 #chartContainer {
   /* ... 他のスタイル ... */
-  height: 400px; /* 例: グラフの高さを400pxに固定 */
-  max-height: 400px; /* 念のため */
+  /* ★ アスペクト比をより横長に変更 (例: 2/1) ★ */
+  aspect-ratio: 2 / 1; /* この比率(2 / 1)を調整して高さを変更 */
+  /* aspect-ratio: 16 / 7; */ /* さらに横長にする場合の例 */
+  height: auto; /* heightはautoのまま */
+  /* ... 他のスタイル ... */
 }
+
 
 
 /* --- Unused Rules Removed --- */
