@@ -1,3 +1,5 @@
+// static/script.js
+
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
 
 let poseLandmarker;
@@ -7,7 +9,7 @@ let lastApiCallTime = 0; // (3) APIスロットリング用
 const apiCallInterval = 500; // (3) API呼び出し間隔 (ms)
 let lastVideoTime = -1; // predictWebcam の重複実行防止用
 
-// video と canvas 要素の取得
+// DOM要素を取得
 const video = document.getElementById("webcam");
 const canvasElement = document.getElementById("output_canvas");
 const canvasCtx = canvasElement.getContext("2d");
@@ -15,163 +17,162 @@ const drawingUtils = new DrawingUtils(canvasCtx);
 const scoreDisplay = document.getElementById("scoreDisplay");
 const webcamButton = document.getElementById("webcamButton");
 
-// MediaPipe Pose Landmarker の初期化
+/**
+ * MediaPipe PoseLandmarkerを非同期で初期化する関数
+ */
 async function initPoseLandmarker() {
+  // UIをロード中状態に更新
+  if (scoreDisplay) scoreDisplay.innerHTML = "<p>姿勢推定モデルの準備を開始...</p>";
+  webcamButton.disabled = true; // ボタンを無効化
+  webcamButton.innerText = "Loading..."; // ボタンテキスト変更
+
+  console.log("Initializing PoseLandmarker...");
   try {
+    if (scoreDisplay) scoreDisplay.innerHTML = "<p>実行ファイルをダウンロード中...</p>";
+    console.log("Fetching vision tasks resolver...");
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+
+    if (scoreDisplay) scoreDisplay.innerHTML = "<p>姿勢推定モデル(lite)をダウンロード中...</p>"; // Liteモデル使用を明記
+    console.log("Resolver fetched. Creating PoseLandmarker (lite)...");
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath:
-          "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-        delegate: "GPU"
+        // Liteモデルを使用 (ネットワーク負荷軽減のため)
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+        delegate: "GPU" // デフォルトはGPU (問題があれば "CPU" も試す価値あり)
       },
-      runningMode, // "VIDEO" で初期化された値を使用
-      numPoses: 1,
+      runningMode: "VIDEO",
+      numPoses: 1, // 検出する人数を1人に制限
     });
-    console.log("PoseLandmarker initialized successfully.");
-    // ボタンを有効化（任意）
-    webcamButton.disabled = false;
+    console.log("PoseLandmarker created successfully:", poseLandmarker);
+    webcamButton.disabled = false; // 初期化成功したらボタンを有効化
+    webcamButton.innerText = "Recording Start";
+    if (scoreDisplay) scoreDisplay.innerHTML = "モデル準備完了。ボタンを押して開始してください。";
   } catch (error) {
     console.error("Failed to initialize PoseLandmarker:", error);
-    if (scoreDisplay) {
-        scoreDisplay.innerHTML =
-        `<p style="color: red;">エラー: モデルの初期化に失敗 (${error.message})</p>`;
+    webcamButton.disabled = true; // エラー時はボタンを無効のまま
+    webcamButton.innerText = "Load Failed"; // エラー表示
+    // より詳細なエラーメッセージをUIに表示
+    let errorMsg = `モデル初期化失敗: ${error.message}`;
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error instanceof TypeError) {
+        errorMsg = "モデルのダウンロードに失敗しました。ネットワーク接続を確認するか、安定したWi-Fi環境で再試行してください。";
+    } else if (error.message.includes('Wasm') || error.message.includes('WebGL')) {
+        errorMsg = "ブラウザまたはデバイスがモデル実行に必要な機能をサポートしていない可能性があります。";
     }
-     webcamButton.disabled = true; // 初期化失敗時はボタンを無効化
+    if (scoreDisplay) {
+        scoreDisplay.innerHTML = `<p style="color: red;">エラー: ${errorMsg}</p>`;
+    }
   }
 }
 
-// getUserMedia サポート確認
+/**
+ * ブラウザがカメラ機能(getUserMedia)をサポートしているか確認
+ * @returns {boolean} サポートしていれば true
+ */
 function hasGetUserMedia() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
 
-// Webカメラ有効化関数
+/**
+ * Webカメラを有効化し、映像ストリームを取得してビデオ要素に設定、
+ * その後、姿勢推定ループを開始する
+ */
 function enableCam() {
+  // 機能サポートチェック
   if (!hasGetUserMedia()) {
     console.warn("getUserMedia() is not supported by your browser");
     if (scoreDisplay) scoreDisplay.innerHTML = `<p style="color: red;">エラー: ブラウザがカメラ機能をサポートしていません</p>`;
-    webcamRunning = false; // 実行フラグを戻す
+    webcamRunning = false; // 実行フラグをリセット
     webcamButton.innerText = "Recording Start";
     return;
   }
+  // モデル初期化済みチェック
   if (!poseLandmarker) {
     console.log("PoseLandmarker model not loaded yet.");
-     if (scoreDisplay) scoreDisplay.innerHTML = `<p>モデルをロード中です。少々お待ちください...</p>`;
-     // 必要であればリトライ処理
+    if (scoreDisplay) scoreDisplay.innerHTML = `<p>エラー: モデルがロードされていません。</p>`;
+    webcamRunning = false; // 実行フラグをリセット
+    webcamButton.innerText = "Recording Start";
     return;
   }
 
-  // カメラ設定を変更
-  const constraints = {
-    video: {
-      // facingMode に "environment" を指定して背面カメラを要求
-      facingMode: "environment"
-      // 必要であれば他の制約（解像度など）も追加できます
-      // width: { ideal: 1280 },
-      // height: { ideal: 720 }
-    }
-  };
-  console.log("Requesting camera with constraints:", constraints); // 確認用ログ
+  // カメラへのアクセス制約 (デフォルトカメラを要求 - facingMode指定なし)
+  const constraints = { video: true };
+  console.log("Requesting camera with constraints:", constraints);
 
-  // カメラアクセス開始
+  // getUserMediaでカメラアクセスを要求
   navigator.mediaDevices.getUserMedia(constraints)
     .then((stream) => {
-      video.srcObject = stream;
+      video.srcObject = stream; // 取得したストリームをvideo要素に接続
 
-      // (オプション) 実際に取得したカメラ設定を確認
+      // (任意)実際に取得したカメラ設定をログに出力
       const track = stream.getVideoTracks()[0];
-      const settings = track.getSettings();
-      console.log("Actual camera settings obtained:", settings);
-      if (settings.facingMode) {
-          console.log(`Using camera facing: ${settings.facingMode}`);
+      if (track) {
+        const settings = track.getSettings();
+        console.log("Actual camera settings obtained:", settings);
       }
 
+      // ビデオのメタデータが読み込まれたら、Canvasサイズを設定し予測ループ開始
       video.addEventListener("loadeddata", () => {
-        // (1) Canvas解像度をビデオの実際のサイズに合わせる
+        // Canvasの内部解像度をビデオの実際の解像度に合わせる
         canvasElement.width = video.videoWidth;
         canvasElement.height = video.videoHeight;
-        // ループ開始
-        lastVideoTime = -1; // リセット
-        requestAnimationFrame(predictWebcam);
-      });
+        // 予測ループのタイムスタンプをリセット
+        lastVideoTime = -1;
+        // webcamRunningフラグがtrueの場合のみループを開始
+        if (webcamRunning) {
+             requestAnimationFrame(predictWebcam);
+        }
+      }, { once: true }); // イベントリスナーを一度だけ実行するように設定
     })
-    .catch((err) => {
+    .catch((err) => { // カメラアクセス失敗時のエラーハンドリング
       console.error("Error accessing webcam:", err);
-      // エラーメッセージに制約に関する情報を含める（例）
       let userErrorMessage = `Webカメラにアクセスできません (${err.message})`;
+      // エラーの種類に応じてメッセージを具体化
       if (err.name === 'OverconstrainedError') {
-          userErrorMessage = `指定されたカメラ（環境カメラなど）が見つからないか、設定がサポートされていません。(${err.message})`;
-      } else if (err.name === 'NotAllowedError') {
-           userErrorMessage = `カメラへのアクセスが許可されませんでした。ブラウザの設定を確認してください。`;
+          userErrorMessage = `要求されたカメラ設定がサポートされていません。(${err.message})`;
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+           userErrorMessage = `カメラへのアクセスが許可されませんでした。ブラウザやOSの設定を確認してください。`;
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+           userErrorMessage = `利用可能なカメラが見つかりませんでした。`;
       }
       if (scoreDisplay) {
           scoreDisplay.innerHTML = `<p style="color: red;">エラー: ${userErrorMessage}</p>`;
       }
-      webcamRunning = false; // 実行フラグを戻す
+      webcamRunning = false; // 実行フラグをリセット
       webcamButton.innerText = "Recording Start";
     });
 }
 
-
-  // カメラ設定（特定の解像度を要求しない方が互換性が高い場合がある）
-  const constraints = { video: true };
-
-  // カメラアクセス開始
-  navigator.mediaDevices.getUserMedia(constraints)
-    .then((stream) => {
-      video.srcObject = stream;
-      video.addEventListener("loadeddata", () => {
-        // (1) Canvas解像度をビデオの実際のサイズに合わせる
-        canvasElement.width = video.videoWidth;
-        canvasElement.height = video.videoHeight;
-        // ループ開始
-        lastVideoTime = -1; // リセット
-        requestAnimationFrame(predictWebcam);
-      });
-    })
-    .catch((err) => {
-      console.error("Error accessing webcam:", err);
-      if (scoreDisplay) {
-          scoreDisplay.innerHTML =
-          `<p style="color: red;">エラー: Webカメラにアクセスできません (${err.message})</p>`;
-      }
-      webcamRunning = false; // 実行フラグを戻す
-      webcamButton.innerText = "Recording Start";
-    });
-}
-
-// ボタンのイベントリスナー
+// 開始/停止ボタンのクリックイベントリスナー
 webcamButton.addEventListener("click", () => {
-  if (!poseLandmarker) {
-    console.log("PoseLandmarker model not loaded yet.");
-    if (scoreDisplay) scoreDisplay.innerHTML = `<p>モデルをロード中です。少々お待ちください...</p>`;
-    return;
-  }
-
-  webcamRunning = !webcamRunning; // フラグをトグル
+  // 実行状態をトグル
+  webcamRunning = !webcamRunning;
   webcamButton.innerText = webcamRunning ? "Stop Recording" : "Recording Start";
 
   if (webcamRunning) {
-    if(scoreDisplay) scoreDisplay.innerHTML = "評価開始...";
-    enableCam(); // カメラと予測を開始
+    // 開始処理
+    if(scoreDisplay) scoreDisplay.innerHTML = "カメラを起動中...";
+    enableCam(); // カメラ有効化と予測ループ開始処理を呼び出す
   } else {
-    // (2) カメラストリーム停止処理
+    // 停止処理
+    // Webカメラのストリームを停止
     if (video.srcObject) {
       video.srcObject.getTracks().forEach(track => track.stop());
-      video.srcObject = null;
+      video.srcObject = null; // video要素との接続を解除
       console.log("Webcam stream stopped.");
     }
-    // ループは requestAnimationFrame の条件で自動停止
-    // 描画クリアと表示リセット
+    // Canvasをクリア
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    // スコア表示をリセット
     if (scoreDisplay) scoreDisplay.innerHTML = "評価停止中";
+    // 次の predictWebcam 呼び出しを防ぐ (requestAnimationFrameの条件で停止)
   }
 });
 
-// ===== 補正入力の取得 =====
+/**
+ * HTMLフォームから現在のキャリブレーション設定値を取得する関数
+ * @returns {object} キャリブレーション設定値を含むオブジェクト
+ */
 function getCalibrationInputs() {
-  // この関数は変更なし
   return {
     filmingSide: document.querySelector('input[name="filmingSide"]:checked').value,
     neckRotation: Number(document.querySelector('input[name="neckRotation"]:checked').value),
@@ -190,98 +191,101 @@ function getCalibrationInputs() {
   };
 }
 
-// ===== Webカメラからの検出ループ =====
+/**
+ * Webカメラ映像から姿勢を推定し、結果を描画・API送信するメインループ関数
+ */
 async function predictWebcam() {
-  // webcamRunning フラグが false ならループを即時終了
+  // webcamRunning フラグが false になっていたらループを終了
   if (!webcamRunning) {
     return;
   }
 
-  // ビデオの準備ができているか、新しいフレームかを確認
+  // ビデオの再生状態とフレーム更新を確認
+  // video.readyState >= 2 は HAVE_CURRENT_DATA かそれ以上を示す
   if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
-    lastVideoTime = video.currentTime;
-    const startTimeMs = performance.now();
+    lastVideoTime = video.currentTime; // 現在のフレーム時間を記録
+    const startTimeMs = performance.now(); // 検出処理の開始時間
 
-    // MediaPipe 検出実行
+    // MediaPipe Pose Landmarker で姿勢を検出
     poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
-      // webcamRunning が false になっていたら描画やAPI呼び出しをスキップ
+      // 非同期コールバック実行時にも webcamRunning フラグを再確認
       if (!webcamRunning) return;
 
-      // Canvasクリア
+      // 前回の描画をクリア
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // ランドマークがあれば描画とAPI呼び出し
+      // ランドマークが検出された場合のみ処理
       if (result.landmarks && result.landmarks.length > 0) {
-        const landmarkSet = result.landmarks[0]; // numPoses: 1
+        const landmarkSet = result.landmarks[0]; // 最初の人物のランドマーク
 
-        // 描画
+        // Canvasにランドマークと骨格を描画
         drawingUtils.drawLandmarks(landmarkSet, {
-          radius: (data) => DrawingUtils.lerp(data.from.z, -0.15, 0.1, 5, 1)
+          radius: (data) => DrawingUtils.lerp(data.from.z, -0.15, 0.1, 5, 1) // Z座標に応じて点を描画(奥は小さく)
         });
-        drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
+        drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS); // 線で結ぶ
 
-        // (3) API呼び出しスロットリング
+        // API呼び出し頻度を制限 (スロットリング)
         const now = performance.now();
         if (now - lastApiCallTime > apiCallInterval) {
-          lastApiCallTime = now; // 最終呼び出し時間を更新
+          lastApiCallTime = now; // 最後にAPI呼び出しした時間を更新
 
+          // キャリブレーション設定を取得
           const calibInputs = getCalibrationInputs();
+          // APIに送信するデータを作成
           const payload = {
-            landmarks: landmarkSet,
-            calibInputs: calibInputs
+            landmarks: landmarkSet, // 検出されたランドマークデータ
+            calibInputs: calibInputs // フォームからの設定値
           };
 
           // !! 重要: デプロイ後にバックエンドURLに書き換えてください !!
-          const apiUrl = "https://reba-cgph.onrender.com"; // ローカル用
+          const apiUrl = "http://127.0.0.1:8000/compute_reba"; // ローカル開発用
           // const apiUrl = "https://your-backend-name.onrender.com/compute_reba"; // Renderデプロイ後のURL例
 
-          // バックエンド API へ送信
+          // バックエンドAPIにPOSTリクエストを送信
           fetch(apiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           })
-          .then(response => {
-              if (!response.ok) { // エラーレスポンスチェック
-                  // エラー情報をJSONとして取得試行
+          .then(response => { // レスポンスのステータスコードをチェック
+              if (!response.ok) {
+                  // エラーレスポンスの場合は、内容を解析してエラーを投げる
                   return response.json().then(errData => {
-                     // FastAPIのHTTPExceptionはdetailにメッセージが入ることが多い
-                     throw new Error(errData.detail || `HTTPエラー! status: ${response.status}`);
+                     // FastAPIからのエラー詳細(detail)があればそれを使う
+                     throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
                   }).catch(() => {
-                      // JSON取得失敗時はステータスコードでエラー
-                      throw new Error(`HTTPエラー! status: ${response.status}`);
+                      // JSON解析失敗時はステータスコードのみ
+                      throw new Error(`HTTP error! status: ${response.status}`);
                   });
               }
-              return response.json(); // 正常時はJSONをパース
+              return response.json(); // 正常ならJSONをパース
           })
-          .then(data => {
-            // API呼び出し成功時の処理
-            if (scoreDisplay && webcamRunning) { // webcamRunning を再確認
+          .then(data => { // APIからの正常なレスポンス受信時
+            // スコア表示を更新（webcamRunningがtrueの場合のみ）
+            if (scoreDisplay && webcamRunning) {
               scoreDisplay.innerHTML =
                 `<p>最終REBAスコア: ${data.final_score}</p>
                  <p>リスクレベル: ${data.risk_level}</p>`;
             }
           })
-          .catch(err => { // (5) エラーハンドリング強化
+          .catch(err => { // fetch自体またはレスポンス処理中のエラー
             console.error("Error calling REBA API:", err);
-            if (scoreDisplay && webcamRunning) { // webcamRunning を再確認
+            // エラーをUIに表示（webcamRunningがtrueの場合のみ）
+            if (scoreDisplay && webcamRunning) {
               scoreDisplay.innerHTML =
                 `<p style="color: red;">エラー: REBAスコア取得失敗 (${err.message})</p>`;
             }
           });
-        } // --- End throttling check ---
-      } // --- End if(result.landmarks) ---
-    }); // --- End detectForVideo callback ---
-  } // --- End if(video.readyState) ---
+        } // --- スロットリングブロック終了 ---
+      } // --- ランドマーク処理終了 ---
+    }); // --- detectForVideo コールバック終了 ---
+  } // --- video.readyState チェック終了 ---
 
-  // webcamRunning フラグが true の間、次のフレームを要求
+  // webcamRunning フラグが true の間、次のアニメーションフレームで再度実行を要求
   if (webcamRunning) {
     window.requestAnimationFrame(predictWebcam);
   }
 }
 
-// 初期化を実行
+// アプリケーション初期化関数を呼び出し
 initPoseLandmarker();
-// 初期状態ではボタンを無効化しておき、初期化完了後に有効化
-webcamButton.disabled = true;
-
