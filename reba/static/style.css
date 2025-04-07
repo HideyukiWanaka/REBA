@@ -177,5 +177,12 @@ canvas#output_canvas {
   transition: opacity 500ms ease-in-out;
 }
 
+#chartContainer {
+  /* ... 他のスタイル ... */
+  height: 400px; /* 例: グラフの高さを400pxに固定 */
+  max-height: 400px; /* 念のため */
+}
+
+
 /* --- Unused Rules Removed --- */
 
