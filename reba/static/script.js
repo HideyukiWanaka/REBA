@@ -118,9 +118,9 @@ webcamButton.addEventListener("click", () => {
     // 結果表示欄を初期化
     if (scoreDisplay) scoreDisplay.innerHTML = "カメラを起動中...";
     // グラフデータをリセット (オプション)
-    chartData.labels = [];
+    /* chartData.labels = [];
     chartData.datasets.forEach(dataset => { dataset.data = []; });
-    if (rebaChart) rebaChart.update(); // グラフをクリア
+    if (rebaChart) rebaChart.update(); // グラフをクリア*/
 
     enableCam(); // カメラ有効化と予測ループ開始
   } else {
