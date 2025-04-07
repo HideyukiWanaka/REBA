@@ -106,7 +106,7 @@ h1 {
   position: relative; /* Crucial for positioning button and canvas */
   width: 90%; /* Responsive width */
   max-width: 1024px; /* Max sensible width */
-  aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+  aspect-ratio: 1 / 1; /* Maintain aspect ratio */
   background-color: #333; /* Dark background while loading */
   border: 1px solid #555;
   border-radius: 8px; /* Match other sections */
