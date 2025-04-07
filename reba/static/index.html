@@ -2,11 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>REBA評価システム</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REBA評価システム</title>
   <link rel="stylesheet" href="./style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <h1>REBA評価システム</h1>
@@ -21,19 +23,24 @@
     <div>
       <p>頸部: 回旋あり?</p>
       <label><input type="radio" name="neckRotation" value="0" checked> いいえ (+0)</label>
-      <label><input type="radio" name="neckRotation" value="1"> はい (+1)</label> </div>
+      <label><input type="radio" name="neckRotation" value="1"> はい (+1)</label>
+    </div>
     <div>
       <p>頸部: 側屈あり?</p>
       <label><input type="radio" name="neckLateralBending" value="0" checked> いいえ (+0)</label>
-      <label><input type="radio" name="neckLateralBending" value="1"> はい (+1)</label> </div>
+      <label><input type="radio" name="neckLateralBending" value="1"> はい (+1)</label>
+    </div>
     <div>
       <p>体幹: 側屈あり?</p>
       <label><input type="radio" name="trunkLateralFlexion" value="0" checked> いいえ (+0)</label>
-      <label><input type="radio" name="trunkLateralFlexion" value="1"> はい (+1)</label> </div>
+      <label><input type="radio" name="trunkLateralFlexion" value="1"> はい (+1)</label>
+    </div>
     <div>
       <p>荷重/力 (Load/Force)</p>
       <label><input type="radio" name="loadForce" value="0" checked> 5kg未満 (+0)</label>
-      <label><input type="radio" name="loadForce" value="5"> 5-10kg (+1)</label> <label><input type="radio" name="loadForce" value="11"> 10kg超 (+2)</label> </div>
+      <label><input type="radio" name="loadForce" value="5"> 5-10kg (+1)</label>
+      <label><input type="radio" name="loadForce" value="11"> 10kg超 (+2)</label>
+    </div>
      <div>
       <p>作業姿勢 (Posture Category)</p>
       <label><input type="radio" name="postureCategory" value="standingBoth" checked> 立位 - 両足支持</label>
@@ -101,7 +108,11 @@
     <canvas id="output_canvas"></canvas>
   </div>
 
+  <div id="chartContainer" style="margin: 20px auto; max-width: 1024px; background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <h3>リアルタイムスコア推移</h3>
+    <canvas id="rebaChart"></canvas>
+  </div>
+
   <script type="module" src="./script.js"></script>
 </body>
 </html>
-
