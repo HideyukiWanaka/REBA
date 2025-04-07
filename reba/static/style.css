@@ -182,8 +182,8 @@ canvas#output_canvas {
 #chartContainer {
   /* ... 他のスタイル ... */
   /* ★ アスペクト比をより横長に変更 (例: 2/1) ★ */
-  aspect-ratio: 2 / 1; /* この比率(2 / 1)を調整して高さを変更 */
-  /* aspect-ratio: 16 / 7; */ /* さらに横長にする場合の例 */
+  /*aspect-ratio: 2 / 1; /* この比率(2 / 1)を調整して高さを変更 */
+  aspect-ratio: 16 / 7; /* さらに横長にする場合の例 */
   height: auto; /* heightはautoのまま */
   /* ... 他のスタイル ... */
 }
