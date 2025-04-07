@@ -47,6 +47,7 @@ function hasGetUserMedia() {
 }
 
 // Webカメラ有効化関数
+// Webカメラ有効化関数
 function enableCam() {
   if (!hasGetUserMedia()) {
     console.warn("getUserMedia() is not supported by your browser");
@@ -61,6 +62,58 @@ function enableCam() {
      // 必要であればリトライ処理
     return;
   }
+
+  // カメラ設定を変更
+  const constraints = {
+    video: {
+      // facingMode に "environment" を指定して背面カメラを要求
+      facingMode: "environment"
+      // 必要であれば他の制約（解像度など）も追加できます
+      // width: { ideal: 1280 },
+      // height: { ideal: 720 }
+    }
+  };
+  console.log("Requesting camera with constraints:", constraints); // 確認用ログ
+
+  // カメラアクセス開始
+  navigator.mediaDevices.getUserMedia(constraints)
+    .then((stream) => {
+      video.srcObject = stream;
+
+      // (オプション) 実際に取得したカメラ設定を確認
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      console.log("Actual camera settings obtained:", settings);
+      if (settings.facingMode) {
+          console.log(`Using camera facing: ${settings.facingMode}`);
+      }
+
+      video.addEventListener("loadeddata", () => {
+        // (1) Canvas解像度をビデオの実際のサイズに合わせる
+        canvasElement.width = video.videoWidth;
+        canvasElement.height = video.videoHeight;
+        // ループ開始
+        lastVideoTime = -1; // リセット
+        requestAnimationFrame(predictWebcam);
+      });
+    })
+    .catch((err) => {
+      console.error("Error accessing webcam:", err);
+      // エラーメッセージに制約に関する情報を含める（例）
+      let userErrorMessage = `Webカメラにアクセスできません (${err.message})`;
+      if (err.name === 'OverconstrainedError') {
+          userErrorMessage = `指定されたカメラ（環境カメラなど）が見つからないか、設定がサポートされていません。(${err.message})`;
+      } else if (err.name === 'NotAllowedError') {
+           userErrorMessage = `カメラへのアクセスが許可されませんでした。ブラウザの設定を確認してください。`;
+      }
+      if (scoreDisplay) {
+          scoreDisplay.innerHTML = `<p style="color: red;">エラー: ${userErrorMessage}</p>`;
+      }
+      webcamRunning = false; // 実行フラグを戻す
+      webcamButton.innerText = "Recording Start";
+    });
+}
+
 
   // カメラ設定（特定の解像度を要求しない方が互換性が高い場合がある）
   const constraints = { video: true };
