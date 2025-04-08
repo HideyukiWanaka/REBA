@@ -16,7 +16,7 @@ class Landmark(BaseModel):
     x: float
     y: float
     z: float = 0.0
-    visibility: float = Field(default=1.0, ge=0.0, le=1.0)
+    visibility: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 class CalibrationInputs(BaseModel):
     # ↓↓↓ Indentation required ↓↓↓
