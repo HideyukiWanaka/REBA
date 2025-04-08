@@ -172,6 +172,12 @@ async function predictWebcam() {
         if (now - lastApiCallTime > apiCallInterval) {
           lastApiCallTime = now;
           const calibInputs = getCalibrationInputs();
+
+          // ★★★ このログを追加 ★★★
+          console.log("Calibration Inputs obtained:", calibInputs);
+           // ★★★ ここまで ★★★
+
+          
           const payload = { landmarks: landmarkSet, calibInputs: calibInputs };
           const apiUrl = "https://reba-cgph.onrender.com/compute_reba"; // ★★★ 正しいバックエンドURL ★★★
           console.log("Calling API:", apiUrl);
