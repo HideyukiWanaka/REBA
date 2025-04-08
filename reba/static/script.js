@@ -176,50 +176,66 @@ async function predictWebcam() {
           const apiUrl = "https://reba-cgph.onrender.com/compute_reba"; // ★★★ 正しいバックエンドURL ★★★
           console.log("Calling API:", apiUrl);
           // predictWebcam 関数内の try ブロックの中
-          try {
+          // predictWebcam 関数内の try...catch ブロック全体を修正
+
+          try { // 同期エラー(主にstringify)用 try
               const jsonPayload = JSON.stringify(payload);
               console.log("Stringified Payload for API:", jsonPayload);
 
-              // ★★★ おそらくこの fetch と後続の .then/.catch の修正部分を指していました ★★★
+              // fetch 呼び出しを開始
               fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
-              .then(response => {
+              .then(response => { // ① HTTP応答の処理
                   console.log("API response status:", response.status);
-                  if (!response.ok) { // 200番台以外のステータスコード(422など)の場合
-                      // エラーレスポンスの本文を取得してエラーを投げる
+                  if (!response.ok) {
+                      // エラー応答の場合、本文を読み取ってエラーを生成し、catchへ送る
                       return response.text().then(text => {
                          console.error("API error response body:", text);
                          let errorMsg = `サーバーエラー Status: ${response.status}. Response: ${text}`;
                          try {
-                             // FastAPIの422エラー形式を解析試行
                              const errData = JSON.parse(text);
                              if (response.status === 422 && errData.detail && Array.isArray(errData.detail)) {
                                  errorMsg = "データ検証エラー: " + errData.detail.map(e => `${e.loc?.slice(-1)[0] || 'field'} - ${e.msg}`).join('; ');
-                             } else if (errData.detail) {
-                                 errorMsg = errData.detail; // 他のFastAPIエラー詳細
-                             }
-                         } catch (e) { /* JSONパース失敗時は元のテキストを使用 */ }
-                         throw new Error(errorMsg); // ★ エラーをthrowしてcatchに渡す
+                             } else if (errData.detail) { errorMsg = errData.detail; }
+                         } catch (e) { /* Ignore */ }
+                         throw new Error(errorMsg); // <-- これが下の Promise.catch() に送られる
                       });
                   }
-                  return response.json(); // OKならJSONをパース
+                  return response.json(); // 正常ならJSONパースの Promise を返す
               })
-              .then(data => { // ★ response.ok が true の場合のみここに来る ★
+              .then(data => { // ② 正常なJSONデータを受け取った場合の処理
                  console.log("API success data:", data);
-                 // スコア更新・グラフ更新など...
-                 if (scoreDisplay && webcamRunning) { /* ... */ }
+                 // スコア表示更新
+                 if (scoreDisplay && webcamRunning) {
+                   const score = data?.final_score ?? 'N/A';
+                   const risk = data?.risk_level ?? 'N/A';
+                   scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
+                 }
+                 // グラフ更新
                  if (webcamRunning) { updateChart(data); }
               })
-              .catch(err => { // ★ ネットワークエラーや上記でthrowされたエラーをここで捕捉 ★
-                console.error("Full error object caught during API call:", err);
+              // ★★★ fetch Promise チェーンのエラーハンドリング用 .catch() を追加 ★★★
+              .catch(err => {
+                console.error("Full error object caught during API call or processing:", err);
                 let displayMessage = err.message || "不明なAPIエラー";
-                // エラーメッセージ表示 (より具体的なエラーが出るはず)
+                // エラーメッセージを改善 (任意)
+                if (err.name === 'TypeError' && err.message.includes('fetch')) {
+                    displayMessage = "APIへの接続に失敗しました。URLまたはネットワークを確認してください。";
+                } else if (err.message.includes('데이터 검증 오류')) { // 韓国語の例（もしあれば）
+                    displayMessage = err.message; // バックエンドからの詳細エラーを使う
+                }
+                // エラーをUIに表示
                 if (scoreDisplay && webcamRunning) {
                   scoreDisplay.innerHTML = `<p style="color: red;">エラー: REBAスコア取得失敗 (${displayMessage})</p>`;
                 }
               });
-              // ★★★ ここまでの一連の修正 ★★★
-          } catch (stringifyError) { /* ... */ }
-          } catch (stringifyError) { /* ... */ }
+              // ★★★ ここまで .catch() を追加 ★★★
+
+          } catch (stringifyError) { // ← これは同期エラー(主にstringify)用の catch
+              console.error("Error stringifying payload:", stringifyError, payload);
+              if (scoreDisplay && webcamRunning) {
+                  scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データの作成に失敗しました。</p>`;
+              }
+          } // 同期エラー用 try-catch 終了
         } // --- スロットリング終了 ---
       } // --- ランドマーク処理終了 ---
     }); // --- detectForVideo コールバック終了 ---
