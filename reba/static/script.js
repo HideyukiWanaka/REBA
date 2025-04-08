@@ -175,22 +175,50 @@ async function predictWebcam() {
           const payload = { landmarks: landmarkSet, calibInputs: calibInputs };
           const apiUrl = "https://reba-cgph.onrender.com/compute_reba"; // ★★★ 正しいバックエンドURL ★★★
           console.log("Calling API:", apiUrl);
+          // predictWebcam 関数内の try ブロックの中
           try {
               const jsonPayload = JSON.stringify(payload);
+              console.log("Stringified Payload for API:", jsonPayload);
+
+              // ★★★ おそらくこの fetch と後続の .then/.catch の修正部分を指していました ★★★
               fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
-              .then(response => { /* ... */ return response.json(); })
-              .then(data => {
+              .then(response => {
+                  console.log("API response status:", response.status);
+                  if (!response.ok) { // 200番台以外のステータスコード(422など)の場合
+                      // エラーレスポンスの本文を取得してエラーを投げる
+                      return response.text().then(text => {
+                         console.error("API error response body:", text);
+                         let errorMsg = `サーバーエラー Status: ${response.status}. Response: ${text}`;
+                         try {
+                             // FastAPIの422エラー形式を解析試行
+                             const errData = JSON.parse(text);
+                             if (response.status === 422 && errData.detail && Array.isArray(errData.detail)) {
+                                 errorMsg = "データ検証エラー: " + errData.detail.map(e => `${e.loc?.slice(-1)[0] || 'field'} - ${e.msg}`).join('; ');
+                             } else if (errData.detail) {
+                                 errorMsg = errData.detail; // 他のFastAPIエラー詳細
+                             }
+                         } catch (e) { /* JSONパース失敗時は元のテキストを使用 */ }
+                         throw new Error(errorMsg); // ★ エラーをthrowしてcatchに渡す
+                      });
+                  }
+                  return response.json(); // OKならJSONをパース
+              })
+              .then(data => { // ★ response.ok が true の場合のみここに来る ★
                  console.log("API success data:", data);
-                 // 現在スコア表示更新
-                 if (scoreDisplay && webcamRunning) {
-                   const score = data?.final_score ?? 'N/A';
-                   const risk = data?.risk_level ?? 'N/A';
-                   scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
-                 }
-                 // ★ グラフ更新 ★
+                 // スコア更新・グラフ更新など...
+                 if (scoreDisplay && webcamRunning) { /* ... */ }
                  if (webcamRunning) { updateChart(data); }
               })
-              .catch(err => { /* ... エラーハンドリング ... */ });
+              .catch(err => { // ★ ネットワークエラーや上記でthrowされたエラーをここで捕捉 ★
+                console.error("Full error object caught during API call:", err);
+                let displayMessage = err.message || "不明なAPIエラー";
+                // エラーメッセージ表示 (より具体的なエラーが出るはず)
+                if (scoreDisplay && webcamRunning) {
+                  scoreDisplay.innerHTML = `<p style="color: red;">エラー: REBAスコア取得失敗 (${displayMessage})</p>`;
+                }
+              });
+              // ★★★ ここまでの一連の修正 ★★★
+          } catch (stringifyError) { /* ... */ }
           } catch (stringifyError) { /* ... */ }
         } // --- スロットリング終了 ---
       } // --- ランドマーク処理終了 ---
