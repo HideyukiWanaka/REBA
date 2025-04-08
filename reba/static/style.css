@@ -129,7 +129,7 @@ canvas#output_canvas {
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   /* ★★★ 固定の高さを指定 (この値を調整してください) ★★★ */
-  height: 350px; /* 例: グラフの高さを350pxに指定 */
+  height: 500px; /* 例: グラフの高さを350pxに指定 */
   /* aspect-ratio の指定は削除 */
 }
 #rebaChart {
