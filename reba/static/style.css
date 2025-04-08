@@ -131,7 +131,7 @@ canvas#output_canvas {
   /* ★★★ 固定の高さを指定 (この値を調整してください) ★★★ */
   /*height: 300px; /* 例: グラフの高さを350pxに指定 */
   /* aspect-ratio の指定は削除 */
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 16 / 7;
 }
 #rebaChart {
     max-width: 100%;
