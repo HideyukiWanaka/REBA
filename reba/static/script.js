@@ -152,6 +152,8 @@ webcamButton.addEventListener("click", () => {
 // キャリブレーション入力取得
 // script.js 内の getCalibrationInputs 関数を以下のように修正
 
+// script.js 内の getCalibrationInputs 関数を以下のように修正
+
 function getCalibrationInputs() {
   const names = [
     "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion",
