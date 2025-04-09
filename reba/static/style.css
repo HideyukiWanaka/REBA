@@ -123,7 +123,8 @@ canvas#output_canvas {
 /* Chart Container Styling */
 #chartContainer {
   margin: 20px auto;
-  max-width: 800px; /* 横幅を他の要素と合わせる */
+  max-width: 600px; /* 横幅を他の要素と合わせる */
+  max-height: 600px;
   background-color: #fff;
   padding: 15px;
   border-radius: 8px;
