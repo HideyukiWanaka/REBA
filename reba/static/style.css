@@ -124,7 +124,7 @@ canvas#output_canvas {
 #chartContainer {
   margin: 20px auto;
   max-width: 600px; /* 横幅を他の要素と合わせる */
-  max-height: 600px;
+  max-height: 350px;
   background-color: #fff;
   padding: 15px;
   border-radius: 8px;
