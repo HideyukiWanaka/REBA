@@ -231,6 +231,13 @@ function getCalibrationInputs() {
     }
   }
 
+// console.log("—-- Finished Checking Inputs ---");
+
+  if (errorOccurred)
+    { console.warn ("Errors occurred fetching some calibration inputs...", data); }
+  else { console.1og ("Successfully obtained calibration inputs:", data); }
+
+  return data;//常に data オブジェクトを返す
 
 /**
  * メインループ (最大スコア更新処理あり)
