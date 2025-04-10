@@ -196,48 +196,55 @@ webcamButton.addEventListener("click", () => {
 });
 
 // キャリブレーション入力取得 (堅牢版)
+// static/script.js 内の getCalibrationInputs 関数全体を修正
+
 function getCalibrationInputs() {
   const names = [
     "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion",
-    "loadForce", "postureCategory",
-    "supportingLeg", // ★ supportingLeg をリストに追加 ★
-    "upperArmCorrection", "shoulderElevation", "gravityAssist", "wristCorrection",
-    "wristAngleScore", "staticPosture", "repetitiveMovement",
-    "unstableMovement", "coupling"
+    "loadForce",
+    "shockForce", // ★ shockForce をリストに追加 ★
+    "postureCategory", "supportingLeg", "upperArmCorrection", "shoulderElevation",
+    "gravityAssist", "wristCorrection", "wristAngleScore", "staticPosture",
+    "repetitiveMovement", "unstableMovement", "coupling"
   ];
   const data = {};
-  let errorOccurred = false;
+  let errorOccurred = false; // エラー発生フラグ
 
-  // console.log("--- Checking Calibration Inputs ---");
+  // console.log("--- Checking Calibration Inputs ---"); // デバッグ用
 
   for (const name of names) {
+    // チェックされているラジオボタン要素を取得
     const element = document.querySelector(`input[name="${name}"]:checked`);
-    if (element) {
-      // ★ supportingLeg は文字列として扱う ★
+    if (element) { // 要素が見つかった場合
+      // 特定のフィールド以外は数値に変換
       if (name === "filmingSide" || name === "postureCategory" || name === "supportingLeg") {
-        data[name] = element.value;
+        data[name] = element.value; // 文字列のまま格納
       } else {
-        const value = Number(element.value);
-        data[name] = isNaN(value) ? 0 : value;
+        const value = Number(element.value); // 数値に変換
+        data[name] = isNaN(value) ? 0 : value; // 変換失敗時は 0 を格納 (shockForce も数値として扱われる)
       }
     } else {
-      console.warn(`Could not find checked input for name="${name}". Assigning default.`);
-      errorOccurred = true;
-      // ★ supportingLeg のデフォルト値を設定 (例: "left") ★
+      // 要素が見つからない場合 (HTMLのデフォルトcheckedがあれば通常発生しないはず)
+      console.warn(`Could not find checked input for name="${name}". Assigning default value.`);
+      errorOccurred = true; // エラーがあったことを記録
+      // フォールバックとしてデフォルト値を設定
       if (name === "filmingSide" || name === "postureCategory") { data[name] = ""; }
-      else if (name === "supportingLeg") { data[name] = "left"; } // デフォルト左脚
+      else if (name === "supportingLeg") { data[name] = "left"; }
       else if (name === "wristAngleScore") { data[name] = 1; }
-      else { data[name] = 0; }
+      else { data[name] = 0; } // shockForce のデフォルトは 0
     }
   }
 
-// console.log("—-- Finished Checking Inputs ---");
+  // console.log("--- Finished Checking Inputs ---"); // デバッグ用
+  if (errorOccurred) {
+    console.warn("Errors occurred fetching some calibration inputs. Data might be incomplete:", data);
+  } else {
+    console.log("Successfully obtained calibration inputs:", data);
+  }
 
-  if (errorOccurred)
-    { console.warn ("Errors occurred fetching some calibration inputs...", data); }
-  else { console.1og ("Successfully obtained calibration inputs:", data); }
+  return data; // 常に data オブジェクトを返す (一部エラーがあっても)
+}
 
-  return data;//常に data オブジェクトを返す
 
 /**
  * メインループ (最大スコア更新処理あり)
