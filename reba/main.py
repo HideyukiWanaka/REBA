@@ -1,12 +1,16 @@
 # main.py (完全版 - 2025/04/11 時点 - Pydantic V2 Validator 修正済み)
 
+# main.py の一番上
 from fastapi import FastAPI, HTTPException
-# Pydantic V2 スタイル用に ValidationInfo をインポート
-from pydantic import BaseModel, Field, validator, ValidationError, ValidationInfo
+# ↓↓↓ pydantic の import 文に model_validator を追加 ↓↓↓
+from pydantic import BaseModel, Field, validator, ValidationError, model_validator
 from typing import List, Dict, Any, Optional
 import math
-import traceback # For detailed error logging
-from fastapi.middleware.cors import CORSMiddleware # CORS用
+import traceback
+from fastapi.middleware.cors import CORSMiddleware
+# ↑↑↑ model_validator が含まれていることを確認 ↑↑↑
+
+# ... 以降のコード ...
 
 app = FastAPI(title="REBA Evaluation API")
 
