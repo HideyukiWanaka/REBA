@@ -196,24 +196,44 @@ webcamButton.addEventListener("click", () => {
 });
 
 // キャリブレーション入力取得 (堅牢版)
+
 function getCalibrationInputs() {
-    const names = [ "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion", "loadForce", "postureCategory", "upperArmCorrection", "shoulderElevation", "gravityAssist", "wristCorrection", "staticPosture", "repetitiveMovement", "unstableMovement", "coupling" ];
-    const data = {};
-    let errorOccurred = false;
-    for (const name of names) {
-        const element = document.querySelector(`input[name="${name}"]:checked`);
-        if (element) {
-            if (name === "filmingSide" || name === "postureCategory") { data[name] = element.value; }
-            else { const value = Number(element.value); data[name] = isNaN(value) ? 0 : value; }
-        } else {
-            console.warn(`Could not find checked input for name="${name}". Assigning default/null.`);
-            errorOccurred = true;
-            data[name] = (name === "filmingSide" || name === "postureCategory") ? "" : 0;
-        }
+  const names = [
+    "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion",
+    "loadForce", "postureCategory", "upperArmCorrection", "shoulderElevation",
+    "gravityAssist", "wristCorrection", // ← 既存
+    "wristAngleScore", // ★ 新しい name をリストに追加 ★
+    "staticPosture", "repetitiveMovement",
+    "unstableMovement", "coupling"
+  ];
+  const data = {};
+  let errorOccurred = false;
+
+  // console.log("--- Checking Calibration Inputs ---");
+
+  for (const name of names) {
+    const element = document.querySelector(`input[name="${name}"]:checked`);
+    if (element) {
+      // ★ wristAngleScore も数値として扱う ★
+      if (name === "filmingSide" || name === "postureCategory") {
+        data[name] = element.value;
+      } else {
+        const value = Number(element.value);
+        data[name] = isNaN(value) ? 0 : value; // 数値変換失敗時は 0 とする
+      }
+    } else {
+      console.warn(`Could not find checked input for name="${name}". Assigning default/null.`);
+      errorOccurred = true;
+      // ★ wristAngleScore のデフォルトは 1 とする ★
+      data[name] = (name === "filmingSide" || name === "postureCategory") ? "" : (name === "wristAngleScore" ? 1 : 0);
     }
-    if (errorOccurred) { console.warn("Errors occurred fetching some calibration inputs. Data might be incomplete:", data); }
-    else { console.log("Successfully obtained calibration inputs:", data); }
-    return data;
+  }
+
+  // console.log("--- Finished Checking Inputs ---");
+  if (errorOccurred) { console.warn("Errors occurred fetching some calibration inputs...", data); }
+  else { console.log("Successfully obtained calibration inputs:", data); }
+
+  return data; // 常に data オブジェクトを返す
 }
 
 
