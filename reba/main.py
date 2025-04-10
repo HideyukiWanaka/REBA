@@ -84,6 +84,28 @@ class CalibrationInputs(BaseModel):
         if v not in [0, 1]: raise ValueError('Shock Force flag must be 0 or 1')
         return v
 
+# --- ★★★ Model Validator for supportingLeg (Pydantic V2 スタイル) ★★★ ---
+    # (@validator('supportingLeg') ... def supporting_leg_valid(...) をこれで置き換え)
+    @model_validator(mode='after') # 個々のフィールド検証後にモデル全体を検証
+    def check_supporting_leg(self) -> 'CalibrationInputs':
+        # self を通してフィールド値にアクセス
+        posture = self.postureCategory
+        support_leg = self.supportingLeg
+
+        if posture == 'standingOne':
+            # 片足立ちの場合、supportingLeg は "left" か "right" でなければならない
+            if support_leg not in ['left', 'right']:
+                raise ValueError('Supporting leg ("left" or "right") must be specified for standingOne posture')
+        elif support_leg is not None:
+             # 片足立ち以外の場合、supportingLeg は None であるべきだが、
+             # もし "left" か "right" が指定されていても、ここではエラーとしない
+             # （もし厳密にするならここでエラーを raise）
+             if support_leg not in ['left', 'right']: # 念のため値自体はチェック
+                  raise ValueError('Supporting leg must be "left", "right", or null')
+
+        # 検証が通ったら self (モデルインスタンス) を返す
+        return self
+
 class REBAInput(BaseModel):
     landmarks: List[Landmark]
     calibInputs: CalibrationInputs
