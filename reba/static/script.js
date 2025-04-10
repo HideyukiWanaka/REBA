@@ -196,14 +196,13 @@ webcamButton.addEventListener("click", () => {
 });
 
 // キャリブレーション入力取得 (堅牢版)
-
 function getCalibrationInputs() {
   const names = [
     "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion",
-    "loadForce", "postureCategory", "upperArmCorrection", "shoulderElevation",
-    "gravityAssist", "wristCorrection", // ← 既存
-    "wristAngleScore", // ★ 新しい name をリストに追加 ★
-    "staticPosture", "repetitiveMovement",
+    "loadForce", "postureCategory",
+    "supportingLeg", // ★ supportingLeg をリストに追加 ★
+    "upperArmCorrection", "shoulderElevation", "gravityAssist", "wristCorrection",
+    "wristAngleScore", "staticPosture", "repetitiveMovement",
     "unstableMovement", "coupling"
   ];
   const data = {};
@@ -214,27 +213,23 @@ function getCalibrationInputs() {
   for (const name of names) {
     const element = document.querySelector(`input[name="${name}"]:checked`);
     if (element) {
-      // ★ wristAngleScore も数値として扱う ★
-      if (name === "filmingSide" || name === "postureCategory") {
+      // ★ supportingLeg は文字列として扱う ★
+      if (name === "filmingSide" || name === "postureCategory" || name === "supportingLeg") {
         data[name] = element.value;
       } else {
         const value = Number(element.value);
-        data[name] = isNaN(value) ? 0 : value; // 数値変換失敗時は 0 とする
+        data[name] = isNaN(value) ? 0 : value;
       }
     } else {
-      console.warn(`Could not find checked input for name="${name}". Assigning default/null.`);
+      console.warn(`Could not find checked input for name="${name}". Assigning default.`);
       errorOccurred = true;
-      // ★ wristAngleScore のデフォルトは 1 とする ★
-      data[name] = (name === "filmingSide" || name === "postureCategory") ? "" : (name === "wristAngleScore" ? 1 : 0);
+      // ★ supportingLeg のデフォルト値を設定 (例: "left") ★
+      if (name === "filmingSide" || name === "postureCategory") { data[name] = ""; }
+      else if (name === "supportingLeg") { data[name] = "left"; } // デフォルト左脚
+      else if (name === "wristAngleScore") { data[name] = 1; }
+      else { data[name] = 0; }
     }
   }
-
-  // console.log("--- Finished Checking Inputs ---");
-  if (errorOccurred) { console.warn("Errors occurred fetching some calibration inputs...", data); }
-  else { console.log("Successfully obtained calibration inputs:", data); }
-
-  return data; // 常に data オブジェクトを返す
-}
 
 
 /**
