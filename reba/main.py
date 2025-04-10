@@ -62,20 +62,34 @@ class CalibrationInputs(BaseModel):
         if v not in ["standingBoth", "standingOne", "sittingWalking"]: raise ValueError('Invalid posture category')
         return v
 
-    # ★★★ supporting_leg_valid を Pydantic V2 スタイルに修正 ★★★
-    @validator('supportingLeg')
-    def supporting_leg_valid(cls, v: Optional[str], info: ValidationInfo): # 'values' の代わりに 'info: ValidationInfo'
-        # 他のフィールドの値は info.data 経由で取得
-        if info.data: # info.data が存在するかチェック
-            posture = info.data.get('postureCategory')
-            if posture == 'standingOne':
-                # 片足立ちの場合、supportingLeg は "left" か "right" でなければならない
-                if v not in ['left', 'right']:
-                    raise ValueError('Supporting leg ("left" or "right") must be specified for standingOne posture')
-            elif v is not None and v not in ['left', 'right']:
-                 # 片足立ち以外の場合、None, "left", "right" 以外はエラー
-                 raise ValueError('Supporting leg must be "left", "right", or null')
-        return v
+    # main.py の CalibrationInputs クラス内
+
+class CalibrationInputs(BaseModel):
+    # ... (他のフィールド定義) ...
+    # ... (他の @validator) ...
+
+    # --- ★★★ 以下のメソッドを追加 (古い @validator は削除) ★★★ ---
+    @model_validator(mode='after')
+    def check_supporting_leg(self) -> 'CalibrationInputs': # 引数は self
+        # self を通してフィールド値にアクセス
+        posture = self.postureCategory
+        support_leg = self.supportingLeg
+
+        if posture == 'standingOne':
+            # 片足立ちの場合、supportingLeg は "left" か "right" でなければならない
+            if support_leg not in ['left', 'right']:
+                raise ValueError('Supporting leg ("left" or "right") must be specified for standingOne posture')
+        elif support_leg is not None:
+             # 片足立ち以外の場合、supportingLeg は None であるべきだが、
+             # もし "left" か "right" が指定されていても、ここではエラーとしない
+             if support_leg not in ['left', 'right']: # 念のため値自体はチェック
+                  raise ValueError('Supporting leg must be "left", "right", or null')
+
+        # 検証が通ったら self を返す
+        return self
+    # ★★★ ここまで ★★★
+
+# ... (クラス定義の続き) ...
     # ★★★ ここまで修正 ★★★
 
     @validator('wristBaseScore')
