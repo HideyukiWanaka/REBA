@@ -277,40 +277,99 @@ async function predictWebcam() {
               return; // ストップ
           }
 
-          try {
+          // predictWebcam 関数内の API スロットリング if ブロックの中
+
+          try { // 同期エラー(主にstringify)用 try
+              const calibInputs = getCalibrationInputs();
+              console.log("[DEBUG] Calibration Inputs:", calibInputs); // 確認用ログ1
+              const landmarkSet = result.landmarks[0];
+
+              // calibInputs が本当に有効か再確認
+              if (typeof calibInputs !== 'object' || calibInputs === null) {
+                  console.error("Critical Error: calibInputs is not a valid object after getCalibrationInputs!", calibInputs);
+                  // ここで処理を中断するか、デフォルト値を設定するなどの対応が必要
+                  throw new Error("CalibrationInputs are invalid."); // エラーを発生させてcatchへ
+              }
+
+              const payload = {
+                  landmarks: landmarkSet,
+                  calibInputs: calibInputs
+              };
+              console.log("[DEBUG] Payload Object just before stringify:", payload); // 確認用ログ2
+
               const jsonPayload = JSON.stringify(payload);
+              // ★★★ Stringify 後の結果を注意深く確認 ★★★
+              console.log("[DEBUG] Stringified Payload:", jsonPayload); // 確認用ログ3
+              // ★★★ もしこの時点で calibInputs が消えていたら stringify に問題あり ★★★
+
+              const apiUrl = "https://reba-cgph.onrender.com/compute_reba";
+              console.log("Calling API:", apiUrl);
+
+              // --- ★ fetch Promise Handling の修正版 ★ ---
               fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
-              .then(response => { // レスポンス処理 (変更なし)
-                    console.log("API response status:", response.status);
-                    if (!response.ok) { return response.text().then(text => { /* ... エラーthrow ... */ }); }
-                    return response.json();
-               })
-              .then(data => { // 正常系データ処理
-                 console.log("API success data:", data);
-                 // ★ 最大スコア更新 ★
-                 if (data && data.final_score !== null && data.final_score !== undefined && data.final_score > maxRebaScore) {
-                   maxRebaScore = data.final_score;
-                   console.log(`New max REBA score recorded: ${maxRebaScore}`);
-                 }
-                 // 現在スコア表示更新
-                 if (scoreDisplay && webcamRunning) {
-                   const score = data?.final_score ?? 'N/A';
-                   const risk = data?.risk_level ?? 'N/A';
-                   scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
-                 }
-                 // グラフ更新
-                 if (webcamRunning) { updateChart(data); }
+              .then(response => {
+                  console.log("[DEBUG] API response status:", response.status); // 確認用ログ4
+                  if (!response.ok) {
+                      // エラー応答の場合、本文を取得してエラーを生成し、catchへ送る
+                      return response.text().then(text => { // 必ずこの Promise を return
+                         console.error("[DEBUG] API error response body text:", text); // 確認用ログ5
+                         let errorMsg = `サーバーエラー Status: ${response.status}.`;
+                         try {
+                             const errData = JSON.parse(text);
+                             console.error("[DEBUG] Parsed API error detail:", errData.detail); // 確認用ログ6
+                             if (response.status === 422 && errData.detail && Array.isArray(errData.detail)) {
+                                 errorMsg = "データ検証エラー: " + errData.detail.map(e => `${e.loc?.join('.') || 'field'} - ${e.msg}`).join('; ');
+                             } else if (errData.detail) {
+                                 errorMsg = errData.detail;
+                             } else {
+                                errorMsg += ` Response: ${text}`;
+                             }
+                         } catch (e) {
+                            console.error("[DEBUG] Failed to parse error response as JSON:", e);
+                            errorMsg += ` Response: ${text}`;
+                         }
+                         throw new Error(errorMsg); // ★★★ エラーを throw ★★★
+                      });
+                  }
+                  // OK応答の場合のみJSONパースへ
+                  return response.json();
               })
-              .catch(err => { // fetch Promise チェーンのエラー処理
-                 console.error("Full error object caught during API call:", err);
-                 let displayMessage = err.message || "不明なAPIエラー";
-                 if (err.name === 'TypeError') { displayMessage = "API接続失敗。URL/ネットワーク確認"; }
-                 if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: REBAスコア取得失敗 (${displayMessage})</p>`; }
+              .then(data => { // ★ response.ok が true の場合のみここに来るはず ★
+                 console.log("[DEBUG] API success data object:", data); // 確認用ログ7
+                 if (!data) { // 応答ボディが空やnullの場合のエラー処理
+                      console.error("Received undefined/null data despite OK response!");
+                      throw new Error("API returned OK but data is null or undefined.");
+                 }
+                 // --- スコア・グラフ更新処理 ---
+                 if (data && data.final_score !== null && data.final_score !== undefined) {
+                      if (data.final_score > maxRebaScore) maxRebaScore = data.final_score;
+                 }
+                 if (scoreDisplay && webcamRunning) {
+                     const score = data?.final_score ?? 'N/A';
+                     const risk = data?.risk_level ?? 'N/A';
+                     scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
+                 }
+                 if (webcamRunning) { updateChart(data); }
+                 // --- ここまでスコア・グラフ更新 ---
+              })
+              .catch(err => { // ★ ネットワークエラーや throw されたエラーを捕捉 ★
+                console.error("[DEBUG] Error caught in fetch chain:", err); // 確認用ログ8
+                let displayMessage = err.message || "不明なAPIエラー";
+                if (err.name === 'TypeError') { displayMessage = "API接続失敗。URL/ネットワーク確認"; }
+                // エラーをUIに表示
+                if (scoreDisplay && webcamRunning) {
+                  scoreDisplay.innerHTML = `<p style="color: red;">エラー: REBAスコア取得失敗 (${displayMessage})</p>`;
+                }
               });
-          } catch (stringifyError) { // 同期エラー処理
+             // ★★★ Promise 用 .catch() はここまで ★★★
+
+          } catch (stringifyError) { // ← 同期エラー(主にstringify)用の catch
               console.error("Error stringifying payload:", stringifyError, payload);
-              if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データ作成失敗</p>`; }
-          }
+              if (scoreDisplay && webcamRunning) {
+                  scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データ作成失敗</p>`;
+              }
+          } // 同期エラー用 try-catch 終了
+
         } // --- スロットリング終了 ---
       } // --- ランドマーク処理終了 ---
     }); // --- detectForVideo コールバック終了 ---
