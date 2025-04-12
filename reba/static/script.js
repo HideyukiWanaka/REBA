@@ -198,51 +198,75 @@ webcamButton.addEventListener("click", () => {
 // キャリブレーション入力取得 (堅牢版)
 // static/script.js 内の getCalibrationInputs 関数全体を修正
 
+// static/script.js 内
+
 function getCalibrationInputs() {
-  const names = [
+  // HTMLのname属性のリスト
+  const names_in_html = [
     "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion",
-    "loadForce",
-    "shockForce", // ★ shockForce をリストに追加 ★
-    "postureCategory", "supportingLeg", "upperArmCorrection", "shoulderElevation",
-    "gravityAssist", "wristCorrection", "wristAngleScore", "staticPosture",
-    "repetitiveMovement", "unstableMovement", "coupling"
+    "loadForce", "shockForce", "postureCategory", "supportingLeg",
+    "upperArmCorrection", "shoulderElevation", "gravityAssist", "wristCorrection",
+    "wristAngleScore", // ← HTMLでのname属性
+    "staticPosture", "repetitiveMovement", "unstableMovement", "coupling"
   ];
-  const data = {};
-  let errorOccurred = false; // エラー発生フラグ
+  // HTMLのnameとPythonモデルのフィールド名のマッピング (異なる場合のみ記述)
+  const name_map = {
+      "wristAngleScore": "wristBaseScore" // HTMLの 'wristAngleScore' を Pythonの 'wristBaseScore' にマップ
+  };
 
-  // console.log("--- Checking Calibration Inputs ---"); // デバッグ用
+  const data = {}; // Pythonバックエンドに送るデータオブジェクト
+  let errorOccurred = false;
 
-  for (const name of names) {
-    // チェックされているラジオボタン要素を取得
-    const element = document.querySelector(`input[name="${name}"]:checked`);
-    if (element) { // 要素が見つかった場合
-      // 特定のフィールド以外は数値に変換
-      if (name === "filmingSide" || name === "postureCategory" || name === "supportingLeg") {
-        data[name] = element.value; // 文字列のまま格納
+  for (const html_name of names_in_html) {
+    // HTMLのname属性で要素を検索
+    const element = document.querySelector(`input[name="${html_name}"]:checked`);
+    // dataオブジェクトに格納する際のキー名 (Pythonモデルのフィールド名) を決定
+    const python_name = name_map[html_name] || html_name;
+
+    if (element) {
+      // 値を取得し、適切な型で data オブジェクトに格納 (キーはpython_name)
+      if (html_name === "filmingSide" || html_name === "postureCategory" || html_name === "supportingLeg") {
+        data[python_name] = element.value;
       } else {
-        const value = Number(element.value); // 数値に変換
-        data[name] = isNaN(value) ? 0 : value; // 変換失敗時は 0 を格納 (shockForce も数値として扱われる)
+        const value = Number(element.value);
+        data[python_name] = isNaN(value) ? 0 : value;
       }
     } else {
-      // 要素が見つからない場合 (HTMLのデフォルトcheckedがあれば通常発生しないはず)
-      console.warn(`Could not find checked input for name="${name}". Assigning default value.`);
-      errorOccurred = true; // エラーがあったことを記録
-      // フォールバックとしてデフォルト値を設定
-      if (name === "filmingSide" || name === "postureCategory") { data[name] = ""; }
-      else if (name === "supportingLeg") { data[name] = "left"; }
-      else if (name === "wristAngleScore") { data[name] = 1; }
-      else { data[name] = 0; } // shockForce のデフォルトは 0
+      console.warn(`Could not find checked input for name="${html_name}". Assigning default.`);
+      errorOccurred = true;
+      // デフォルト値を設定 (キーはpython_name)
+      if (python_name === "filmingSide" || python_name === "postureCategory") { data[python_name] = ""; }
+      else if (python_name === "supportingLeg") { data[python_name] = null; } // Optionalはnull
+      else if (python_name === "wristBaseScore") { data[python_name] = 1; }   // wristBaseScoreのデフォルト
+      else { data[python_name] = 0; }
     }
   }
 
-  // console.log("--- Finished Checking Inputs ---"); // デバッグ用
   if (errorOccurred) {
-    console.warn("Errors occurred fetching some calibration inputs. Data might be incomplete:", data);
-  } else {
-    console.log("Successfully obtained calibration inputs:", data);
+      console.warn("Errors occurred fetching some calibration inputs...", data);
   }
 
-  return data; // 常に data オブジェクトを返す (一部エラーがあっても)
+  // ★★★ 最終チェック: Pythonの必須フィールドがdataに含まれるか ★★★
+  // (supportingLegはOptionalなので除く)
+  const requiredPythonKeys = [
+      "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion", "loadForce",
+      "shockForce", "postureCategory", "upperArmCorrection", "shoulderElevation",
+      "gravityAssist", "wristCorrection", "wristBaseScore", "staticPosture",
+      "repetitiveMovement", "unstableMovement", "coupling"
+  ];
+  let missingKey = false;
+  for (const key of requiredPythonKeys) {
+      if (!(key in data)) {
+          console.error(`CRITICAL: Required key "${key}" is missing from constructed calibInputs!`);
+          missingKey = true;
+      }
+  }
+  if (missingKey) return undefined; // 必須キーが欠けていれば未定義を返す (422の原因になりうる)
+  // ★★★ ここまで最終チェック ★★★
+
+
+  console.log("Successfully obtained calibration inputs:", data);
+  return data; // 完成したdataオブジェクトを返す
 }
 
 
