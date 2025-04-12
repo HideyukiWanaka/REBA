@@ -251,28 +251,138 @@ function getCalibrationInputs() {
 /**
  * メインループ (最大スコア更新処理あり, 角度画面表示なし)
  */
+/**
+ * メインループ (最大スコア更新処理あり, 角度画面表示なし)
+ */
 async function predictWebcam() {
   // Check if running and essential components exist
   if (!webcamRunning || !poseLandmarker) { return; }
-  if (!video || video.readyState < 2 || !canvasCtx || !drawingUtils) { if (webcamRunning) requestAnimationFrame(predictWebcam); return; }
+  // video要素とCanvasコンテキストの存在確認
+  if (!video || video.readyState < 2 || !canvasCtx || !drawingUtils) {
+      console.log("Video not ready or canvas context missing, skipping frame.");
+      // Try again next frame if still running
+      if (webcamRunning) requestAnimationFrame(predictWebcam);
+      return;
+  }
 
-  if (video.currentTime !== lastVideoTime) {
-    lastVideoTime = video.currentTime;
-    const startTimeMs = performance.now();
+  // Avoid running if time hasn't changed (relevant for paused video or slow processing)
+  if (video.currentTime === lastVideoTime) {
+       if (webcamRunning) requestAnimationFrame(predictWebcam); // Still request next frame
+       return;
+  }
+  lastVideoTime = video.currentTime; // 現在のフレーム時間を記録
+  const startTimeMs = performance.now(); // 検出処理の開始時間
 
-    poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
-      // Check again in callback
-      if (!webcamRunning) return;
+  // MediaPipe Pose Landmarker で姿勢を検出
+  poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
+    // Check if running inside the callback as well
+    if (!webcamRunning) return;
 
-      try { // Wrap drawing and API call logic in try block
-          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    try { // コールバック全体の処理をtryで囲む (予期せぬエラー捕捉のため)
+        // 前回の描画をクリア
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-          if (result.landmarks && result.landmarks.length > 0) {
-              console.log("[DEBUG] Landmarks DETECTED."); // 検出成功ログ
-              const landmarkSet = result.landmarks[0];
-              // --- ▼▼▼ ランドマーク検出成功時の処理（既存のコード）▼▼▼ ---
-              try { // Draw landmarks safely
-                  drawingUtils.drawLandmarks(landmarkSet, { /* ... */ });
+        // ★★★ ランドマーク検出の有無をチェックしログ出力 ★★★
+        if (result.landmarks && result.landmarks.length > 0) {
+            console.log("[DEBUG] Landmarks DETECTED."); // ★ 検出成功ログ ★
+            const landmarkSet = result.landmarks[0]; // Assume only one person
+
+            // --- ▼▼▼ ランドマーク検出成功時の処理 ▼▼▼ ---
+            try { // 描画処理もtry-catchで囲む
+                drawingUtils.drawLandmarks(landmarkSet, { radius: (data) => DrawingUtils.lerp(data.from.z ?? 0, -0.15, 0.1, 5, 1) });
+                drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
+            } catch(drawError) { console.error("Error drawing landmarks:", drawError); }
+
+            // API スロットリング
+            const now = performance.now();
+            if (now - lastApiCallTime > apiCallInterval) {
+              lastApiCallTime = now; // 最終呼び出し時間を更新
+              const calibInputs = getCalibrationInputs(); // 1. 入力取得
+
+              // 3. 入力データチェック
+              if (typeof calibInputs !== 'object' || calibInputs === null) {
+                  console.error("Skipping API call because calibInputs is invalid.", calibInputs);
+                  if(scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = "<p style='color:red;'>エラー: 入力値取得失敗</p>"; }
+                  return; // returnしないと下のpayload作成に進んでしまう
+              }
+
+              // 4. ペイロード作成
+              const payload = {
+                  landmarks: landmarkSet, // 2. ランドマーク取得したものを入れる
+                  calibInputs: calibInputs
+              };
+              // console.log("[DEBUG] Payload Object:", payload); // 必要ならログ出力
+
+              // 5. JSON 文字列化
+              let jsonPayload;
+              try {
+                  jsonPayload = JSON.stringify(payload);
+                  // console.log("[DEBUG] Stringified Payload:", jsonPayload); // 必要ならログ出力
+              } catch (stringifyError) {
+                  console.error("Error stringifying payload:", stringifyError, payload);
+                  if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データ作成失敗</p>`; }
+                  return; // stringify 失敗時も中断
+              }
+
+              // 6. API 呼び出しと Promise 処理
+              const apiUrl = "https://reba-cgph.onrender.com/compute_reba";
+              // console.log("Calling API:", apiUrl); // 必要ならログ出力
+
+              fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
+              .then(response => { // ① HTTP応答処理
+                  // console.log("[DEBUG] API response status:", response.status);
+                  if (!response.ok) {
+                      return response.text().then(text => {
+                         console.error("[DEBUG] API error response body text:", text);
+                         let errorMsg = `サーバーエラー Status: ${response.status}.`;
+                         try { const errData = JSON.parse(text); errorMsg = errData.detail || errorMsg } catch(e){}
+                         throw new Error(errorMsg);
+                      });
+                  }
+                  return response.json();
+              })
+              .then(data => { // ② 正常応答処理
+                 // console.log("[DEBUG] API success data object:", data);
+                 if (!data) { throw new Error("API OK but data null/undefined."); }
+                 // 最大スコア更新
+                 if (typeof data.final_score === 'number' && data.final_score > maxRebaScore) { maxRebaScore = data.final_score; }
+                 // スコア表示更新
+                 if (scoreDisplay && webcamRunning) {
+                     const score = (typeof data.final_score === 'number') ? data.final_score : 'N/A';
+                     const risk = data?.risk_level ?? 'N/A';
+                     scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
+                 }
+                 // グラフ更新
+                 if (webcamRunning) { updateChart(data); }
+                 // 計算された角度をコンソールに出力
+                 if (data.computed_angles) { console.log("Computed Angles:", data.computed_angles); }
+                 else { console.warn("Computed angles data missing."); }
+              })
+              .catch(err => { // ③ エラー処理
+                console.error("[DEBUG] Error caught in fetch chain:", err);
+                let displayMessage = err.message || "不明なAPIエラー";
+                if (err.name === 'TypeError') { displayMessage = "API接続失敗"; }
+                if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: スコア取得失敗 (${displayMessage})</p>`; }
+              });
+            } // --- スロットリング終了 ---
+            // --- ▲▲▲ ここまでランドマーク検出成功時の処理 ▲▲▲ ---
+
+        } else {
+            console.log("[DEBUG] No landmarks detected in this frame."); // ★ 検出失敗ログ ★
+        }
+        // ★★★ ここまでランドマーク有無のチェックとログ ★★★
+
+    } catch (callbackError) {
+         console.error("Error within detectForVideo callback:", callbackError);
+    }
+    }); // --- detectForVideo コールバック終了 ---
+  } // --- video.readyState チェック終了 ---
+
+  // 次のフレームを要求
+  if (webcamRunning) {
+      window.requestAnimationFrame(predictWebcam);
+  }
+} // --- predictWebcam 関数終了 ---drawingUtils.drawLandmarks(landmarkSet, { /* ... */ });
                   drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
               } catch(drawError) { console.error("Error drawing landmarks:", drawError); }
 
