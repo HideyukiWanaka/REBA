@@ -116,10 +116,23 @@
        <label><input type="radio" name="unstableMovement" value="0" checked> いいえ (+0)</label>
        <label><input type="radio" name="unstableMovement" value="1"> はい (+1)</label>
     </div>
-  </div> <div id="results">
+  </div> 
+　<div id="results">
     <h3>REBA 評価結果</h3>
     <div id="scoreDisplay">まだ評価されていません</div>
-  </div>
+
+    <div id="angleDetails" style="margin-top: 15px; font-size: 0.9em; border-top: 1px solid #eee; padding-top: 10px;">
+        <h4>計算角度 (目安):</h4>
+        <p>体幹傾き(垂直比): <span id="trunkAngleMagDisplay">--</span>° (伸展フラグ: <span id="trunkExtDisplay">--</span>)</p>
+        <p>頸部傾き(垂直比): <span id="neckAngleMagDisplay">--</span>° (伸展フラグ: <span id="neckExtDisplay">--</span>)</p>
+        <p>左肘角度(内部): <span id="leftElbowDisplay">--</span>°</p>
+        <p>右肘角度(内部): <span id="rightElbowDisplay">--</span>°</p>
+        <p>左膝角度(内部): <span id="leftKneeDisplay">--</span>°</p>
+        <p>右膝角度(内部): <span id="rightKneeDisplay">--</span>°</p>
+        <p>左上腕角度(対体幹2D): <span id="leftUpperArmMagDisplay">--</span>° (伸展フラグ: <span id="leftUpperArmExtDisplay">--</span>)</p>
+        <p>右上腕角度(対体幹2D): <span id="rightUpperArmMagDisplay">--</span>° (伸展フラグ: <span id="rightUpperArmExtDisplay">--</span>)</p>
+        </div>
+    </div>
 
   <div id="liveView">
     <button id="webcamButton" disabled>Loading Model...</button>
