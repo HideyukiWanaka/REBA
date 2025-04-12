@@ -1,8 +1,10 @@
-# main.py (完全版 - 2025/04/12 時点)
+# main.py (最終版 - 2025/04/12 時点)
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, validator, ValidationError, model_validator
+# Literal, Optional など typing からインポート
 from typing import List, Dict, Any, Optional, Literal
+# Pydantic から必要なものをインポート
+from pydantic import BaseModel, Field, validator, ValidationError, model_validator
 import math
 import traceback # For detailed error logging
 from fastapi.middleware.cors import CORSMiddleware # CORS用
@@ -13,31 +15,37 @@ app = FastAPI(title="REBA Evaluation API")
 # モデル定義 (Pydantic V2 Field制約を使用)
 # -----------------------------
 class Landmark(BaseModel):
-    x: float # 必須
-    y: float # 必須
-    z: Optional[float] = None # 任意
-    visibility: Optional[float] = Field(default=None, ge=0.0, le=1.0) # 任意 (0.0-1.0)
+    x: float
+    y: float
+    z: Optional[float] = None
+    visibility: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 class CalibrationInputs(BaseModel):
-    filmingSide: Literal['left', 'right'] = Field(..., description="left or right")
-    neckRotation: float # Flag: >0 means rotated
-    neckLateralBending: float # Flag: >0 means bent
-    trunkLateralFlexion: float # Flag: >0 means bent
-    loadForce: float # Represents score bracket start (0, 5, 11)
-    shockForce: Literal[0, 1] = Field(..., description="Shock/Rapid force flag (0 or 1)")
+    filmingSide: Literal['left', 'right'] = Field(...)
+    neckRotation: float
+    neckLateralBending: float
+    trunkLateralFlexion: float
+    loadForce: float
+    shockForce: Literal[0, 1] = Field(...)
     postureCategory: Literal['standingBoth', 'standingOne', 'sittingWalking'] = Field(...)
-    supportingLeg: Optional[Literal['left', 'right']] = None # Optional, only for standingOne
-    upperArmCorrection: Literal[0, 1] = Field(..., description="Abduction/Rotation flag (0 or 1)")
-    shoulderElevation: Literal[0, 1] = Field(..., description="Shoulder raised flag (0 or 1)")
-    gravityAssist: Literal[0, -1] = Field(..., description="Arm supported flag (0 or -1)")
-    wristCorrection: Literal[0, 1] = Field(..., description="Deviation/Twist flag (0 or 1)")
-    wristBaseScore: Literal[1, 2] = Field(..., description="Base score from user input (1 or 2)")
-    staticPosture: Literal[0, 1] = Field(..., description="Activity score flag (0 or 1)")
-    repetitiveMovement: Literal[0, 1] = Field(..., description="Activity score flag (0 or 1)")
-    unstableMovement: Literal[0, 1] = Field(..., description="Activity score flag (0 or 1)")
-    coupling: Literal[0, 1, 2, 3] = Field(..., description="Coupling score addition (0, 1, 2, or 3)")
+    supportingLeg: Optional[Literal['left', 'right']] = None
+    upperArmCorrection: Literal[0, 1] = Field(...)
+    shoulderElevation: Literal[0, 1] = Field(...)
+    gravityAssist: Literal[0, -1] = Field(...)
+    wristCorrection: Literal[0, 1] = Field(...)
+    wristBaseScore: Literal[1, 2] = Field(...)
+    staticPosture: Literal[0, 1] = Field(...)
+    repetitiveMovement: Literal[0, 1] = Field(...)
+    unstableMovement: Literal[0, 1] = Field(...)
+    coupling: Literal[0, 1, 2, 3] = Field(...)
 
-    # --- Model Validator for supportingLeg ---
+    @validator('coupling')
+    def coupling_must_be_valid(cls, v):
+        if not 0 <= v <= 3: raise ValueError('Coupling score must be between 0 and 3')
+        return v
+
+    # 他のシンプルなフィールドは Literal や Field(ge/le) で検証される
+
     @model_validator(mode='after')
     def check_supporting_leg(self) -> 'CalibrationInputs':
         if hasattr(self, 'postureCategory') and hasattr(self, 'supportingLeg'):
@@ -59,8 +67,7 @@ def parse_point(p: Optional[Dict[str, Any]]) -> Optional[Dict[str, float]]:
     """ Safely parses point data, ensuring x, y are floats """
     if p and isinstance(p, dict) and 'x' in p and 'y' in p:
         try:
-            x_val = float(p['x'])
-            y_val = float(p['y'])
+            x_val = float(p['x']); y_val = float(p['y'])
             z_val = float(p['z']) if p.get('z') is not None else None
             vis_val = float(p['visibility']) if p.get('visibility') is not None else None
             parsed = {'x': x_val, 'y': y_val, 'z': z_val}
@@ -86,7 +93,7 @@ def vec_magnitude_2d(v: Optional[Dict[str, float]]) -> float:
     return math.sqrt(mag_sq) if mag_sq > 1e-12 else 0.0
 
 def angle_between_2d_vectors(v1_data: Dict, v2_data: Dict) -> float:
-    v1 = parse_point(v1_data); v2 = parse_point(v2_data) # Use parse_point for safety
+    v1 = v1_data; v2 = v2_data # Assume parsed dicts
     if not v1 or not v2: return 0.0
     mag1 = vec_magnitude_2d(v1); mag2 = vec_magnitude_2d(v2)
     if mag1 * mag2 < 1e-12: return 0.0
@@ -99,7 +106,7 @@ def angle_between_2d_vectors(v1_data: Dict, v2_data: Dict) -> float:
 def angle_with_vertical(p1_data: Dict, p2_data: Dict, min_visibility: float = 0.5) -> float:
     p1 = parse_point(p1_data); p2 = parse_point(p2_data)
     if not p1 or not p2 or p1.get('visibility', 0.0) < min_visibility or p2.get('visibility', 0.0) < min_visibility: return 0.0
-    vector = vec_subtract_2d(p2, p1) # p1 -> p2 vector
+    vector = vec_subtract_2d(p2, p1)
     if not vector: return 0.0
     vertical = {"x": 0, "y": 1} # Y increases downwards
     return angle_between_2d_vectors(vector, vertical)
@@ -118,6 +125,7 @@ def calculate_angle(p1_data: Dict, p2_data: Dict, p3_data: Dict, min_visibility:
 # 角度計算 (Pure 2D)
 # -----------------------------
 def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str, Any]:
+    """ Computes various joint angles and orientation flags from landmarks """
     lm_indices = { "Nose": 0, "L_Shoulder": 11, "R_Shoulder": 12, "L_Elbow": 13, "R_Elbow": 14, "L_Wrist": 15, "R_Wrist": 16, "L_Hip": 23, "R_Hip": 24, "L_Knee": 25, "R_Knee": 26, "L_Ankle": 27, "R_Ankle": 28, "L_Ear": 7, "R_Ear": 8 }
     max_index = max(lm_indices.values())
     if len(landmarks) <= max_index: raise HTTPException(status_code=400, detail=f"Not enough landmarks ({len(landmarks)}). Need {max_index + 1}")
@@ -125,12 +133,13 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
     lm = [lm.model_dump() if hasattr(lm, 'model_dump') else lm.dict() for lm in landmarks]
     min_vis = 0.5
 
-    # --- Get key points & Midpoints ---
+    # Get key points
     ls_p = parse_point(lm[lm_indices["L_Shoulder"]]); rs_p = parse_point(lm[lm_indices["R_Shoulder"]])
     lh_p = parse_point(lm[lm_indices["L_Hip"]]); rh_p = parse_point(lm[lm_indices["R_Hip"]])
     le_p = parse_point(lm[lm_indices["L_Ear"]]); re_p = parse_point(lm[lm_indices["R_Ear"]])
+    nose_p = parse_point(lm[lm_indices["Nose"]]) # For neck calculation fallback? (Currently uses Ear)
 
-    # Helper: Extension Flag from Vertical + X-Component
+    # Helper for Extension Flag (from Vertical + X-Component)
     def get_extension_flag_from_vertical(p1: Optional[Dict], p2: Optional[Dict], side: str, angle_mag_vert: float) -> bool:
         is_ext = False
         p1_p = parse_point(p1); p2_p = parse_point(p2)
@@ -142,14 +151,12 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
             elif side == "right": is_ext = vector_x < -x_threshold
         return is_ext
 
-    # --- Neck (Relative to Trunk using Shoulder->Ear) ---
+    # --- Neck Calculation (Relative to Trunk using Shoulder->Ear) ---
     neckAngleMagnitudeRelTrunk = 0.0
     neckIsExtension = False
-    # Select visible shoulder and ear based on filming_side
     visible_shoulder_p = rs_p if filming_side == "left" else ls_p
     visible_ear_p = re_p if filming_side == "left" else le_p
-    # Need corresponding hip for trunk vector reference
-    visible_hip_p = rh_p if filming_side == "left" else lh_p
+    visible_hip_p = rh_p if filming_side == "left" else lh_p # Hip on the same side as visible shoulder
 
     if visible_shoulder_p and visible_hip_p and visible_ear_p and \
        visible_shoulder_p.get('visibility', 0) >= min_vis and \
@@ -166,7 +173,7 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
                 elif filming_side == "right": neckIsExtension = cross_product_z < -cross_threshold
     else: print(f"Warning: Cannot reliably calculate neck angle relative to trunk. Side: {filming_side}")
 
-    # --- Trunk (Relative to Vertical using side landmarks) ---
+    # --- Trunk Calculation (Relative to Vertical using side landmarks) ---
     signedTrunkAngle = 0.0
     trunk_hip_p = rh_p if filming_side == "left" else lh_p
     trunk_shoulder_p = rs_p if filming_side == "left" else ls_p
@@ -175,8 +182,7 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
         vertical_vec_V_2d = {"x": 0, "y": -1} # Upward vertical
         if trunk_vec_T_2d:
             angle_mag = angle_between_2d_vectors(vertical_vec_V_2d, trunk_vec_T_2d)
-            trunk_vector_x = trunk_vec_T_2d['x']
-            sign = 0; x_threshold = 0.02
+            trunk_vector_x = trunk_vec_T_2d['x']; sign = 0; x_threshold = 0.02
             if angle_mag > 5:
                 if filming_side == "left": sign = -1 if trunk_vector_x > x_threshold else (1 if trunk_vector_x < -x_threshold else 0)
                 elif filming_side == "right": sign = 1 if trunk_vector_x > x_threshold else (-1 if trunk_vector_x < -x_threshold else 0)
@@ -195,7 +201,7 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
         knee_p = parse_point(lm[lm_indices[prefix + "Knee"]])
         ankle_p = parse_point(lm[lm_indices[prefix + "Ankle"]])
 
-        # Upper Arm (Relative Angle & Direction)
+        # Upper Arm (2D Relative Angle & Direction)
         ua_angle_mag_rel_trunk = 0.0; ua_is_ext = False
         if shoulder_p and hip_p and elbow_p and shoulder_p.get('visibility',0) > min_vis and hip_p.get('visibility',0) > min_vis and elbow_p.get('visibility',0) > min_vis:
             trunk_vec_T_2d = vec_subtract_2d(shoulder_p, hip_p)
@@ -213,17 +219,17 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
         # Elbow
         results[f"{side}ElbowAngle"] = calculate_angle(shoulder_p, elbow_p, wrist_p)
         # Wrist
-        results[f"{side}WristAngle"] = 0.0 # Unreliable
+        results[f"{side}WristAngle"] = 0.0
         # Knee
         results[f"{side}KneeAngle"] = calculate_angle(hip_p, knee_p, ankle_p)
 
     # Combine results
     final_angles = {
-        "neckAngleMagnitudeRelTrunk": final_neck_angle_mag, # Use this for scoring neck
-        "neckIsExtension": final_neck_is_ext,             # Use this for scoring neck
-        "signedTrunkAngle": signedTrunkAngle,             # Use this for scoring trunk
+        "neckAngleMagnitude": final_neck_angle_mag, # Use standardized key (relative to trunk)
+        "neckIsExtension": final_neck_is_ext,
+        "signedTrunkAngle": signedTrunkAngle,     # Use standardized key (vs vertical)
         "trunkRotationAngle": trunkRotationAngle,
-        **results # Merge limb angles (includes UpperArmAngleMagnitude etc.)
+        **results # Merge limb angles (includes UpperArm keys etc)
     }
     return final_angles
 
@@ -231,44 +237,34 @@ def compute_all_angles(landmarks: List[Landmark], filming_side: str) -> Dict[str
 # Revised Scoring Functions
 # -----------------------------
 def calc_neck_score_revised(angle_relative_to_trunk: float, is_extension: bool, rotationFlag: bool, sideBendFlag: bool) -> int:
-    base = 1 # Default score for 0-20 Flexion or near aligned with trunk
-    angle = angle_relative_to_trunk
-    # REBA Neck Rule: 0-20 Flexion = 1, >20 Flexion or ANY Extension = 2.
-    if angle > 5 and is_extension: # Any significant Extension (>5 deg deviation from trunk)
-        base = 2
-    elif not is_extension and angle > 20: # > 20 Flexion relative to trunk
-        base = 2
-    # If angle <= 5 OR (5 < angle <= 20 AND not is_extension), base remains 1.
+    base = 1
+    if angle_relative_to_trunk > 5 and is_extension: base = 2
+    elif not is_extension and angle_relative_to_trunk > 20: base = 2
     add = (1 if rotationFlag else 0) + (1 if sideBendFlag else 0)
-    return base + add # Max score = 4
+    return base + add
 
 def calc_trunk_score_revised(signed_trunk_angle: float, rotationFlag: bool, sideBendFlag: bool) -> int:
-    # REBA Trunk Rules based on signed angle from vertical (0=upright, +=Flex, -=Ext)
-    base = 1 # Score for 0 degrees (neutral)
-    angle = signed_trunk_angle # Use signed angle directly
-
-    if -20 <= angle <= 20: # 0-20 Flex OR 0-20 Ext
-        if abs(angle) <= 5: base = 1 # Allow 5 deg tolerance for upright
+    base = 1
+    angle = signed_trunk_angle
+    if -20 <= angle <= 20:
+        if abs(angle) <= 5: base = 1
         else: base = 2
-    elif angle > 20: # Flexion > 20
-        if angle <= 60: base = 3 # 20-60 Flex
-        else: base = 4           # >60 Flex
-    elif angle < -20: # Extension > 20
-        base = 3
+    elif angle > 20: base = 3 if angle <= 60 else 4
+    elif angle < -20: base = 3
     add = (1 if rotationFlag else 0) + (1 if sideBendFlag else 0)
     return base + add
 
 def calc_upper_arm_score_revised(angle_relative_to_trunk: float, is_extension: bool, upperArmCorrection: float, shoulderElevation: float, gravityAssist: float) -> int:
     base = 1
-    angle = angle_relative_to_trunk # Angle (0-180) away from the trunk line
-    if is_extension: base = 2 if angle <= 20 else 3 # Ext 0-20 = 2, >20 = 3
+    angle = angle_relative_to_trunk
+    if is_extension: base = 2 if angle <= 20 else 3
     else: # Flexion or neutral
-        if angle <= 20: base = 1    # Flex 0-20 = 1
-        elif angle <= 45: base = 2 # Flex 20-45 = 2
-        elif angle <= 90: base = 3 # Flex 45-90 = 3
-        else: base = 4             # Flex >90 = 4
+        if angle <= 20: base = 1
+        elif angle <= 45: base = 2
+        elif angle <= 90: base = 3
+        else: base = 4
     corrected = base + int(upperArmCorrection) + int(shoulderElevation) + int(gravityAssist)
-    return max(1, min(6, corrected)) # Clamp 1-6
+    return max(1, min(6, corrected))
 
 def calc_leg_score_unified(postureCategory: str, kneeFlexAngle: Optional[float]) -> int:
     if postureCategory == "sittingWalking": return 1
@@ -287,15 +283,15 @@ def calc_forearm_score(elbowAngle: Optional[float]) -> int:
 def calc_wrist_score(base_score_from_input: int, wristCorrectionFlag: float) -> int:
     base = base_score_from_input
     score = base + int(wristCorrectionFlag)
-    return max(1, min(3, score)) # Clamp 1-3
+    return max(1, min(3, score))
 
-def calc_load_score(loadKgInput: float, shockForceFlag: int) -> int: # Added shockForceFlag
+def calc_load_score(loadKgInput: float, shockForceFlag: int) -> int:
     base_score = 0
     if loadKgInput < 5: base_score = 0
     elif loadKgInput <= 10: base_score = 1
     else: base_score = 2
     final_load_score = base_score + int(shockForceFlag)
-    return max(0, min(3, final_load_score)) # Clamp 0-3
+    return max(0, min(3, final_load_score))
 
 # -----------------------------
 # Lookups & Helpers
@@ -304,14 +300,15 @@ tableA_Lookup = { "1,1,1":1, "1,1,2":2, "1,1,3":3, "1,1,4":4, "1,2,1":1, "1,2,2"
 tableB_Lookup = { "1,1,1":1,"1,1,2":1,"1,1,3":2,"1,2,1":2,"1,2,2":2,"1,2,3":3,"2,1,1":2,"2,1,2":3,"2,1,3":3,"2,2,1":3,"2,2,2":4,"2,2,3":5,"3,1,1":3,"3,1,2":4,"3,1,3":4,"3,2,1":4,"3,2,2":5,"3,2,3":6,"4,1,1":4,"4,1,2":5,"4,1,3":5,"4,2,1":5,"4,2,2":6,"4,2,3":7,"5,1,1":5,"5,1,2":6,"5,1,3":6,"5,2,1":6,"5,2,2":7,"5,2,3":8,"6,1,1":6,"6,1,2":7,"6,1,3":7,"6,2,1":7,"6,2,2":8,"6,2,3":9 }
 tableC_Lookup = { "1,1":1,"1,2":1,"1,3":1,"1,4":2,"1,5":3,"1,6":3,"1,7":4,"1,8":5,"1,9":6,"1,10":7,"1,11":7,"1,12":7,"2,1":1,"2,2":2,"2,3":2,"2,4":3,"2,5":4,"2,6":4,"2,7":5,"2,8":6,"2,9":6,"2,10":7,"2,11":7,"2,12":8,"3,1":2,"3,2":3,"3,3":3,"3,4":4,"3,5":5,"3,6":6,"3,7":7,"3,8":7,"3,9":7,"3,10":8,"3,11":8,"3,12":8,"4,1":3,"4,2":4,"4,3":4,"4,4":4,"4,5":5,"4,6":6,"4,7":7,"4,8":8,"4,9":8,"4,10":9,"4,11":9,"4,12":9,"5,1":4,"5,2":4,"5,3":4,"5,4":5,"5,5":6,"5,6":7,"5,7":8,"5,8":8,"5,9":9,"5,10":9,"5,11":9,"5,12":9,"6,1":6,"6,2":6,"6,3":6,"6,4":7,"6,5":8,"6,6":8,"6,7":9,"6,8":9,"6,9":10,"6,10":10,"6,11":10,"6,12":10,"7,1":7,"7,2":7,"7,3":7,"7,4":8,"7,5":9,"7,6":9,"7,7":9,"7,8":10,"7,9":10,"7,10":11,"7,11":11,"7,12":11,"8,1":8,"8,2":8,"8,3":8,"8,4":9,"8,5":10,"8,6":10,"8,7":10,"8,8":10,"8,9":11,"8,10":11,"8,11":11,"8,12":12,"9,1":9,"9,2":9,"9,3":9,"9,4":10,"9,5":10,"9,6":11,"9,7":11,"9,8":11,"9,9":12,"9,10":12,"9,11":12,"9,12":12,"10,1":10,"10,2":10,"10,3":10,"10,4":11,"10,5":11,"10,6":11,"10,7":12,"10,8":12,"10,9":12,"10,10":12,"10,11":12,"10,12":12,"11,1":11,"11,2":11,"11,3":11,"11,4":12,"11,5":12,"11,6":12,"11,7":12,"11,8":12,"11,9":12,"11,10":12,"11,11":12,"11,12":12,"12,1":12,"12,2":12,"12,3":12,"12,4":12,"12,5":12,"12,6":12,"12,7":12,"12,8":12,"12,9":12,"12,10":12,"12,11":12,"12,12":12 }
 
-def lookup_score(table: Dict[str, int], key_parts: List[int], min_vals: List[int], max_vals: List[int]) -> int:
-    # Ensure keys are integers within the expected range for the table
-    clamped_keys = [max(min_v, min(max_v, int(round(k or 0)))) for k, min_v, max_v in zip(key_parts, min_vals, max_vals)] # Added 'or 0' for safety
+def lookup_score(table: Dict[str, int], key_parts: List[Any], min_vals: List[int], max_vals: List[int]) -> int: # Allow Any type for keys before rounding
+    # Ensure keys are rounded integers within the expected range for the table
+    # Add check for None before int(round())
+    clamped_keys = [max(min_v, min(max_v, int(round(k or 0)))) for k, min_v, max_v in zip(key_parts, min_vals, max_vals)]
     key = ",".join(map(str, clamped_keys))
     val = table.get(key)
     if val is None:
         print(f"Warning: Lookup key '{key}' not found in table. Returning default 1.")
-        return 1 # Return default value if key is somehow invalid
+        return 1
     return val
 
 def getScoreA(trunk: int, neck: int, leg: int, loadKgInput: float, shockForceFlag: int) -> int:
@@ -331,37 +328,37 @@ def get_risk_level(score: int) -> str:
     elif 2 <= score <= 3: return "低リスク (Low)"
     elif 4 <= score <= 7: return "中リスク (Medium)"
     elif 8 <= score <= 10: return "高リスク (High)"
-    else: return "非常に高リスク (Very High)" # Score 11-15
+    else: return "非常に高リスク (Very High)"
 
 # -----------------------------
 # Final REBA Score Calculation Function
 # -----------------------------
 def get_final_reba_score(landmarks: List[Landmark], calib: CalibrationInputs) -> Dict[str, Any]:
     """ Calculates the final REBA score and intermediate values """
-    angles: Dict[str, Any] = {} # Initialize angles dict
+    angles: Dict[str, Any] = {}
     try:
-        # Pass filming_side to angle calculation
         angles = compute_all_angles(landmarks, calib.filmingSide)
-    except HTTPException as e: raise e # Propagate specific HTTP errors
+    except HTTPException as e: raise e
     except Exception as e:
         print(f"ERROR during angle computation: {e}")
-        traceback.print_exc() # Print stack trace for server logs
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Angle computation failed: {e}")
 
     try:
-        # --- Get Flags for Scoring ---
-        # Use .get() for safety, providing default 0 if key somehow missing (should not happen with Pydantic)
+        # --- Flags ---
         neck_twist_flag = calib.neckRotation > 0
         neck_bend_flag = calib.neckLateralBending > 0
-        trunk_twist_flag = abs(angles.get("trunkRotationAngle", 0)) >= 5 # Approx rotation check
+        trunk_twist_flag = abs(angles.get("trunkRotationAngle", 0)) >= 5
         trunk_bend_flag = calib.trunkLateralFlexion > 0
 
-        # --- Calculate Component Scores using REVISED functions ---
+        # --- Component Scores ---
+        # ★ Use correct keys from compute_all_angles for neck score ★
         neckScore = calc_neck_score_revised(
-            angles.get("neckAngleMagnitudeRelTrunk", 0.0), # Use Neck angle relative to trunk
-            angles.get("neckIsExtension", False),
+            angles.get("neckAngleMagnitudeRelTrunk", 0.0), # Use angle relative to trunk
+            angles.get("neckIsExtension", False),          # Use flag relative to trunk
             neck_twist_flag, neck_bend_flag
         )
+        # ★ Use correct key for trunk score ★
         trunkScore = calc_trunk_score_revised(
             angles.get("signedTrunkAngle", 0.0), # Use Signed Trunk angle vs vertical
             trunk_twist_flag, trunk_bend_flag
@@ -381,24 +378,25 @@ def get_final_reba_score(landmarks: List[Landmark], calib: CalibrationInputs) ->
             elif calib.supportingLeg == "right": knee_angle_to_use = right_knee_angle
             if knee_angle_to_use is not None: legScore = calc_leg_score_unified(calib.postureCategory, knee_angle_to_use)
             else: # Fallback
-                print(f"DEBUG: StandingOne - Supporting leg angle invalid/missing for '{calib.supportingLeg}'! Using max score.")
+                print(f"DEBUG: StandingOne - Supporting leg angle invalid/missing! Using max score.")
                 score_left = calc_leg_score_unified(calib.postureCategory, left_knee_angle)
                 score_right = calc_leg_score_unified(calib.postureCategory, right_knee_angle)
                 legScore = max(score_left, score_right)
 
         # --- Limb Scores ---
-        side_to_eval_arm = calib.filmingSide # Evaluate arm on the side being filmed
+        side_to_eval_arm = calib.filmingSide
         prefix = "L_" if side_to_eval_arm == "left" else "R_"
+        # ★ Use correct keys for upper arm score ★
         upperArmScore = calc_upper_arm_score_revised(
-            angles.get(f"{side_to_eval_arm}UpperArmAngleMagnitude", 0.0), # Angle relative to trunk
-            angles.get(f"{side_to_eval_arm}UpperArmIsExtension", False), # Direction flag
+            angles.get(f"{side_to_eval_arm}UpperArmAngleMagnitude", 0.0), # Use angle relative to trunk
+            angles.get(f"{side_to_eval_arm}UpperArmIsExtension", False),   # Use direction flag relative to trunk
             calib.upperArmCorrection, calib.shoulderElevation, calib.gravityAssist
         )
-        forearmScore = calc_forearm_score( angles.get(f"{side_to_eval_arm}ElbowAngle") ) # Elbow internal angle
-        wristScore = calc_wrist_score( calib.wristBaseScore, calib.wristCorrection ) # User inputs
+        forearmScore = calc_forearm_score( angles.get(f"{side_to_eval_arm}ElbowAngle") )
+        wristScore = calc_wrist_score( calib.wristBaseScore, calib.wristCorrection )
 
         # --- Combine Scores ---
-        scoreA = getScoreA(trunkScore, neckScore, legScore, calib.loadForce, calib.shockForce) # Include shockForce
+        scoreA = getScoreA(trunkScore, neckScore, legScore, calib.loadForce, calib.shockForce)
         scoreB = getScoreB(upperArmScore, forearmScore, wristScore, calib.coupling)
         tableCScore = getTableCScore(scoreA, scoreB)
         activityScore = calib.staticPosture + calib.repetitiveMovement + calib.unstableMovement
@@ -407,9 +405,8 @@ def get_final_reba_score(landmarks: List[Landmark], calib: CalibrationInputs) ->
         riskLevel = get_risk_level(finalScore)
 
         response_data = {
-            "final_score": finalScore,
-            "risk_level": riskLevel,
-            "computed_angles": angles, # Includes magnitudes and flags
+            "final_score": finalScore, "risk_level": riskLevel,
+            "computed_angles": angles,
             "intermediate_scores": {
                  "neck": neckScore, "trunk": trunkScore, "leg": legScore,
                  "upperArm": upperArmScore, "forearm": forearmScore, "wrist": wristScore,
@@ -429,19 +426,16 @@ def get_final_reba_score(landmarks: List[Landmark], calib: CalibrationInputs) ->
 # -----------------------------
 @app.post("/compute_reba")
 async def compute_reba_endpoint(input_data: REBAInput):
-    """ Receives landmark data and calibration inputs, returns REBA score """
     try:
-        # Basic landmark count check using lm_indices from compute_all_angles
-        lm_indices_count = 33 # Approximate count needed based on max index in standard models
+        # Use max index from lm_indices to check landmark count
+        lm_indices_count = 33 # Assuming max index is 32 for foot index
         if not input_data.landmarks or len(input_data.landmarks) < lm_indices_count:
              raise HTTPException(status_code=400, detail=f"Insufficient landmarks provided ({len(input_data.landmarks)}). Need at least {lm_indices_count}.")
-
-        # Pydantic validation runs implicitly based on type hint
         result = get_final_reba_score(input_data.landmarks, input_data.calibInputs)
         return result
-    except HTTPException as e: raise e # Propagate known errors
-    except ValidationError as e: raise HTTPException(status_code=422, detail=e.errors()) # Pydantic errors
-    except Exception as e: # Catch-all for other unexpected errors
+    except HTTPException as e: raise e
+    except ValidationError as e: raise HTTPException(status_code=422, detail=e.errors())
+    except Exception as e:
          print(f"ERROR: Unhandled exception in /compute_reba endpoint: {e}")
          traceback.print_exc()
          raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
@@ -449,26 +443,18 @@ async def compute_reba_endpoint(input_data: REBAInput):
 # -----------------------------
 # CORS Middleware
 # -----------------------------
-# ★★★ 必ずご自身のフロントエンドURLを確認・設定してください ★★★
+# ★★★ Ensure your frontend URL is correct here ★★★
 origins = [
-    "http://localhost", # ローカルテスト用
-    "http://127.0.0.1", # ローカルテスト用
-    "https://reba-1.onrender.com", # ユーザー提供のフロントエンドURL
+    "http://localhost", "http://127.0.0.1",
+    "https://reba-1.onrender.com",
 ]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["POST", "GET", "OPTIONS"], # OPTIONS も許可
-    allow_headers=["*"],
-)
+app.add_middleware( CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"], ) # Allow all methods/headers for simplicity
 
 # -----------------------------
 # Root Endpoint
 # -----------------------------
 @app.get("/")
 async def read_root():
-    """ Root endpoint for basic check """
     return {"message": "REBA Evaluation API is running"}
 
 # -----------------------------
@@ -477,4 +463,4 @@ async def read_root():
 # if __name__ == "__main__":
 #     import uvicorn
 #     print("Starting Uvicorn server locally on http://127.0.0.1:8000")
-#     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True) # Use reload=True for dev
+#     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
