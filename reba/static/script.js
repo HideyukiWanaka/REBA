@@ -1,4 +1,4 @@
-// static/script.js (最終版 - 計算角度表示機能を含む)
+// static/script.js (最終版 - 全機能統合)
 
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
 
@@ -26,6 +26,7 @@ const webcamButton = document.getElementById("webcamButton");
 
 if (!scoreDisplay || !webcamButton) {
      console.error("Fatal Error: Score display or Webcam button element not found!");
+     // 必要に応じてアラート表示など
 }
 
 // --- グラフ用変数 ---
@@ -122,13 +123,11 @@ function updateChart(apiData) {
         }
         chartData.labels.push(newLabel);
         chartData.datasets[0].data.push(apiData.final_score ?? null);
-        // intermediate_scores が存在する場合のみ Score A/B をプロット
         const scoreA = apiData.intermediate_scores?.scoreA ?? null;
         const scoreB = apiData.intermediate_scores?.scoreB ?? null;
         chartData.datasets[1].data.push(scoreA);
         chartData.datasets[2].data.push(scoreB);
         rebaChart.update();
-        // console.log("Chart update call successful.");
     } catch(e) { console.error("Error during chart update:", e, apiData); }
 }
 
@@ -144,7 +143,7 @@ function enableCam() {
     if (!hasGetUserMedia()) { console.warn("getUserMedia not supported"); if(scoreDisplay) scoreDisplay.innerHTML = `<p style="color: red;">カメラ未対応</p>`; webcamRunning = false; if(webcamButton) webcamButton.innerText = "Recording Start"; return; }
     if (!poseLandmarker) { console.log("PoseLandmarker not loaded"); if(scoreDisplay) scoreDisplay.innerHTML = `<p>モデル未ロード</p>`; webcamRunning = false; if(webcamButton) webcamButton.innerText = "Recording Start"; return; }
 
-    const constraints = { video: { facingMode: "environment" } };
+    const constraints = { video: { facingMode: "environment" } }; // 環境カメラ要求
     console.log("Requesting camera with constraints:", constraints);
     navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
@@ -156,7 +155,7 @@ function enableCam() {
                 canvasElement.width = video.videoWidth;
                 canvasElement.height = video.videoHeight;
                 lastVideoTime = -1;
-                requestAnimationFrame(predictWebcam);
+                requestAnimationFrame(predictWebcam); // ループ開始
             }, { once: true });
         })
         .catch((err) => {
@@ -196,14 +195,14 @@ if (webcamButton) {
 
       if (webcamRunning) {
         // --- 開始時 ---
-        maxRebaScore = 0;
+        maxRebaScore = 0; // 最大スコアをリセット
         if(scoreDisplay) scoreDisplay.innerHTML = "カメラを起動中...";
-        // グラフデータをリセット
+        // グラフデータをリセット (安全版)
         chartData.labels = [];
         chartData.datasets.forEach(dataset => { dataset.data = []; });
         if (rebaChart) { rebaChart.update(); }
-        else { console.warn("Chart not init when resetting data."); }
-        enableCam();
+        else { console.warn("Chart not initialized when trying to reset data on start."); }
+        enableCam(); // カメラ起動
       } else {
         // --- 停止時 ---
         if (video && video.srcObject) { video.srcObject.getTracks().forEach(track => track.stop()); video.srcObject = null; console.log("Webcam stream stopped."); }
@@ -219,10 +218,10 @@ if (webcamButton) {
     });
 } else { console.error("Webcam button not found!"); }
 
-// キャリブレーション入力取得 (堅牢版)
+// キャリブレーション入力取得 (堅牢版 + wristBaseScore マッピング修正版)
 function getCalibrationInputs() {
     const names_in_html = [ "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion", "loadForce", "shockForce", "postureCategory", "supportingLeg", "upperArmCorrection", "shoulderElevation", "gravityAssist", "wristCorrection", "wristAngleScore", "staticPosture", "repetitiveMovement", "unstableMovement", "coupling" ];
-    const name_map = { "wristAngleScore": "wristBaseScore" };
+    const name_map = { "wristAngleScore": "wristBaseScore" }; // HTML name -> Python name
     const data = {};
     let errorOccurred = false;
     for (const html_name of names_in_html) {
@@ -240,10 +239,9 @@ function getCalibrationInputs() {
         }
     }
     if (errorOccurred) { console.warn("Errors occurred fetching some calibration inputs...", data); }
-    else { /* console.log("Successfully obtained calibration inputs:", data); */ } // Reduce log noise
-    return data;
+    else { /* console.log("Successfully obtained calibration inputs:", data); */ } // Reduce logs
+    return data; // Return data even if incomplete
 }
-
 
 /**
  * メインループ (最大スコア更新処理あり)
@@ -277,7 +275,7 @@ async function predictWebcam() {
           if (typeof calibInputs !== 'object' || calibInputs === null) {
               console.error("Skipping API call because calibInputs is invalid.", calibInputs);
               if(scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = "<p style='color:red;'>エラー: 入力値取得失敗</p>"; }
-              return;
+              return; // Stop if inputs invalid
           }
 
           const payload = { landmarks: landmarkSet, calibInputs: calibInputs };
@@ -291,18 +289,30 @@ async function predictWebcam() {
               return;
           }
 
-          // API 呼び出しと Promise 処理
+          // API 呼び出しと Promise 処理 (修正版エラーハンドリング含む)
           const apiUrl = "https://reba-cgph.onrender.com/compute_reba"; // ★ 正しいURL ★
-          // console.log("Calling API:", apiUrl); // Reduce log noise
+          // console.log("Calling API:", apiUrl); // Reduce logs
 
           fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
-          .then(response => {
-              // console.log("[DEBUG] API response status:", response.status); // Reduce log noise
-              if (!response.ok) { return response.text().then(text => { throw new Error(`Server Error ${response.status}: ${text.slice(0, 100)}`); }); }
+          .then(response => { // ① HTTP応答処理
+              // console.log("[DEBUG] API response status:", response.status); // Reduce logs
+              if (!response.ok) {
+                  return response.text().then(text => {
+                     console.error("[DEBUG] API error response body text:", text);
+                     let errorMsg = `サーバーエラー Status: ${response.status}.`;
+                     try {
+                         const errData = JSON.parse(text);
+                         if (response.status === 422 && errData.detail && Array.isArray(errData.detail)) { errorMsg = "データ検証エラー: " + errData.detail.map(e => `${e.loc?.join('.') || 'field'} - ${e.msg}`).join('; '); }
+                         else if (errData.detail) { errorMsg = errData.detail; }
+                         else { errorMsg += ` Response: ${text}`; }
+                     } catch (e) { errorMsg += ` Response: ${text}`; }
+                     throw new Error(errorMsg);
+                  });
+              }
               return response.json();
           })
-          .then(data => { // 正常応答データ処理
-             // console.log("[DEBUG] API success data object:", data); // Reduce log noise
+          .then(data => { // ② 正常応答処理
+             // console.log("[DEBUG] API success data object:", data); // Reduce logs
              if (!data) { throw new Error("API OK but data null/undefined."); }
 
              // 最大スコア更新
@@ -313,37 +323,19 @@ async function predictWebcam() {
                  const risk = data?.risk_level ?? 'N/A';
                  scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
              }
-             // ★★★ グラフ更新呼び出し ★★★
+             // グラフ更新
              if (webcamRunning) { updateChart(data); }
 
-             // ▼▼▼▼▼▼ ここから計算角度表示コード ▼▼▼▼▼▼
+             // ★★★ 計算された角度をコンソールに出力 ★★★
              if (data.computed_angles) {
-                 const angles = data.computed_angles;
-                 const getVal = (key, precision=1) => { const value = angles[key]; return (typeof value === 'number') ? value.toFixed(precision) : 'N/A'; };
-                 const getBool = (key) => { const value = angles[key]; return value === true ? 'はい' : (value === false ? 'いいえ' : 'N/A'); };
-                 const updateText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
-
-                 updateText('trunkAngleMagDisplay', getVal('trunkAngleMagnitude'));
-                 updateText('trunkExtDisplay', getBool('trunkIsExtension'));
-                 updateText('neckAngleMagDisplay', getVal('neckAngleMagnitude'));
-                 updateText('neckExtDisplay', getBool('neckIsExtension'));
-                 updateText('leftElbowDisplay', getVal('leftElbowAngle'));
-                 updateText('rightElbowDisplay', getVal('rightElbowAngle'));
-                 updateText('leftKneeDisplay', getVal('leftKneeAngle'));
-                 updateText('rightKneeDisplay', getVal('rightKneeAngle'));
-                 updateText('leftUpperArmMagDisplay', getVal('leftUpperArmAngleMagnitude'));
-                 updateText('leftUpperArmExtDisplay', getBool('leftUpperArmIsExtension'));
-                 updateText('rightUpperArmMagDisplay', getVal('rightUpperArmAngleMagnitude'));
-                 updateText('rightUpperArmExtDisplay', getBool('rightUpperArmIsExtension'));
+                 console.log("Computed Angles:", data.computed_angles); // コンソールログは維持
              } else {
-                  // computed_angles がない場合、表示をクリア (省略可)
-                  const idsToClear = ['trunkAngleMagDisplay', /* ... 他のID ... */ ];
-                  idsToClear.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '--'; });
+                 console.warn("Computed angles data missing in API response.");
              }
-             // ▲▲▲▲▲▲ ここまで角度表示コード ▲▲▲▲▲▲
+             // ★★★ ここまで角度出力 ★★★
 
           })
-          .catch(err => { // fetch または then でのエラー
+          .catch(err => { // ③ エラー処理
             console.error("[DEBUG] Error caught in fetch chain:", err);
             let displayMessage = err.message || "不明なAPIエラー";
             if (err.name === 'TypeError') { displayMessage = "API接続失敗"; }
@@ -362,8 +354,5 @@ window.addEventListener('DOMContentLoaded', (event) => {
     console.log('DOM fully loaded and parsed');
     if(video && canvasElement && canvasCtx && drawingUtils && scoreDisplay && webcamButton){
         initPoseLandmarker(); // モデルとグラフの初期化を開始
-    } else {
-         console.error("One or more essential DOM elements are missing!");
-         alert("ページの初期化に失敗しました。");
-    }
-}); // --- DOMContentLoaded リスナー終了 ---
+    } else { console.error("Essential DOM elements missing!"); alert("ページ初期化失敗"); }
+});
