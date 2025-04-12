@@ -268,11 +268,14 @@ async function predictWebcam() {
           canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
           if (result.landmarks && result.landmarks.length > 0) {
-            const landmarkSet = result.landmarks[0]; // Assume only one person
-            try { // Draw landmarks safely
-                drawingUtils.drawLandmarks(landmarkSet, { radius: (data) => DrawingUtils.lerp(data.from.z ?? 0, -0.15, 0.1, 5, 1) });
-                drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
-            } catch(drawError) { console.error("Error drawing landmarks:", drawError); }
+              console.log("[DEBUG] Landmarks DETECTED."); // 検出成功ログ
+              const landmarkSet = result.landmarks[0];
+              // --- ▼▼▼ ランドマーク検出成功時の処理（既存のコード）▼▼▼ ---
+              try { // Draw landmarks safely
+                  drawingUtils.drawLandmarks(landmarkSet, { /* ... */ });
+                  drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
+              } catch(drawError) { console.error("Error drawing landmarks:", drawError); }
+
 
             // API スロットリング
             const now = performance.now();
