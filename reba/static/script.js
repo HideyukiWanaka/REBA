@@ -346,7 +346,45 @@ async function predictWebcam() {
              }
              // グラフ更新
              if (webcamRunning) { updateChart(data); }
-          })
+             if (data.computed_angles) {
+                 const angles = data.computed_angles;
+                 // 小数点以下1桁、N/Aフォールバック付きで値を取得する補助関数
+                 const getVal = (key, precision=1) => {
+                     const value = angles[key];
+                     return (typeof value === 'number') ? value.toFixed(precision) : 'N/A';
+                 };
+                 // booleanを「はい」「いいえ」に変換する補助関数
+                 const getBool = (key) => {
+                     const value = angles[key];
+                     return value === true ? 'はい' : (value === false ? 'いいえ' : 'N/A');
+                 };
+                 // HTML要素のtextContentを安全に更新する補助関数
+                 const updateText = (id, value) => {
+                     const el = document.getElementById(id);
+                     if (el) el.textContent = value;
+                 };
+
+                 updateText('trunkAngleMagDisplay', getVal('trunkAngleMagnitude'));
+                 updateText('trunkExtDisplay', getBool('trunkIsExtension'));
+                 updateText('neckAngleMagDisplay', getVal('neckAngleMagnitude'));
+                 updateText('neckExtDisplay', getBool('neckIsExtension'));
+                 updateText('leftElbowDisplay', getVal('leftElbowAngle'));
+                 updateText('rightElbowDisplay', getVal('rightElbowAngle'));
+                 updateText('leftKneeDisplay', getVal('leftKneeAngle'));
+                 updateText('rightKneeDisplay', getVal('rightKneeAngle'));
+                 updateText('leftUpperArmMagDisplay', getVal('leftUpperArmAngleMagnitude'));
+                 updateText('leftUpperArmExtDisplay', getBool('leftUpperArmIsExtension'));
+                 updateText('rightUpperArmMagDisplay', getVal('rightUpperArmAngleMagnitude'));
+                 updateText('rightUpperArmExtDisplay', getBool('rightUpperArmIsExtension'));
+             } else {
+                  // computed_angles がない場合、表示をクリアする (オプション)
+                  const idsToClear = ['trunkAngleMagDisplay', 'trunkExtDisplay', 'neckAngleMagDisplay', 'neckExtDisplay', 'leftElbowDisplay', 'rightElbowDisplay', 'leftKneeDisplay', 'rightKneeDisplay', 'leftUpperArmMagDisplay', 'leftUpperArmExtDisplay', 'rightUpperArmMagDisplay', 'rightUpperArmExtDisplay'];
+                  idsToClear.forEach(id => {
+                      const el = document.getElementById(id);
+                      if (el) el.textContent = '--';
+                  });
+             }
+          })  
           .catch(err => { // fetch または then でのエラー
             console.error("[DEBUG] Error caught in fetch chain:", err);
             let displayMessage = err.message || "不明なAPIエラー";
