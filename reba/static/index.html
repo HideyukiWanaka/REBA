@@ -35,30 +35,33 @@
       <label><input type="radio" name="trunkLateralFlexion" value="0" checked> いいえ (+0)</label>
       <label><input type="radio" name="trunkLateralFlexion" value="1"> はい (+1)</label>
     </div>
-    <div>
-      <p>荷重/力 (Load/Force)</p>
+    <div> <p>荷重/力 (Load/Force)</p>
       <label><input type="radio" name="loadForce" value="0" checked> 5kg未満 (+0)</label>
       <label><input type="radio" name="loadForce" value="5"> 5-10kg (+1)</label>
       <label><input type="radio" name="loadForce" value="11"> 10kg超 (+2)</label>
     </div>
+
     <div>
       <p>衝撃力/急激な力あり?</p>
       <small>荷物の操作時に衝撃や急な動きが伴いますか？</small><br>
       <label><input type="radio" name="shockForce" value="0" checked> いいえ (+0)</label>
       <label><input type="radio" name="shockForce" value="1"> はい (+1)</label>
     </div>
-     <div>
-      <p>作業姿勢 (Posture Category)</p>
+    <div> <p>作業姿勢 (Posture Category)</p>
+      </div>
+
+<div> <p>作業姿勢 (Posture Category)</p>
       <label><input type="radio" name="postureCategory" value="standingBoth" checked> 立位 - 両足支持</label>
       <label><input type="radio" name="postureCategory" value="standingOne"> 立位 - 片足/不安定</label>
       <label><input type="radio" name="postureCategory" value="sittingWalking"> 座位</label>
     </div>
+
     <div>
       <p>支持脚 (Supporting Leg)</p>
       <small>「片足立ち/不安定」の場合、主に体重を支えている脚を選択してください。</small><br>
       <label><input type="radio" name="supportingLeg" value="left" checked> 左脚</label>
       <label><input type="radio" name="supportingLeg" value="right"> 右脚</label>
-    </div>
+      </div>
     <div>
       <p>上腕: 外転または回旋あり?</p>
       <label><input type="radio" name="upperArmCorrection" value="0" checked> いいえ (+0)</label>
@@ -116,7 +119,7 @@
   </div> <div id="results">
     <h3>REBA 評価結果</h3>
     <div id="scoreDisplay">まだ評価されていません</div>
-    </div>
+  </div>
 
   <div id="liveView">
     <button id="webcamButton" disabled>Loading Model...</button>

@@ -1,4 +1,4 @@
-// static/script.js (最終版 - 2025/04/12 時点)
+// static/script.js (完全版 - 構文エラー修正再試行)
 
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
 
@@ -17,7 +17,7 @@ const canvasElement = document.getElementById("output_canvas");
 // canvas要素が見つからない場合のエラーハンドリングを追加
 if (!video || !canvasElement) {
     console.error("Fatal Error: Video or Canvas element not found in HTML!");
-    alert("必要なHTML要素(video/canvas)が見つかりません。");
+    alert("必要なHTML要素が見つかりません。ページを確認してください。");
 }
 const canvasCtx = canvasElement ? canvasElement.getContext("2d") : null;
 const drawingUtils = canvasCtx ? new DrawingUtils(canvasCtx) : null;
@@ -28,6 +28,7 @@ if (!scoreDisplay || !webcamButton) {
      console.error("Fatal Error: Score display or Webcam button element not found!");
      // 必要に応じてアラート表示など
 }
+
 
 // --- グラフ用変数 ---
 let rebaChart = null; // Chart.js インスタンス (初期値 null)
@@ -46,44 +47,53 @@ const chartData = {
  */
 async function initPoseLandmarker() {
   if (scoreDisplay) scoreDisplay.innerHTML = "<p>姿勢推定モデルの準備を開始...</p>";
-  if (webcamButton) { webcamButton.disabled = true; webcamButton.innerText = "Loading..."; }
+  if (webcamButton) {
+       webcamButton.disabled = true; webcamButton.innerText = "Loading...";
+  }
   console.log("Initializing PoseLandmarker...");
   try {
     if (scoreDisplay) scoreDisplay.innerHTML = "<p>実行ファイルをダウンロード中...</p>";
     console.log("Fetching vision tasks resolver...");
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+
     if (scoreDisplay) scoreDisplay.innerHTML = "<p>姿勢推定モデル(full)をダウンロード中...</p>";
     console.log("Resolver fetched. Creating PoseLandmarker (full)...");
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        // Fullモデルのパスを使用
         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-        delegate: "GPU" // 必要に応じて "CPU" に変更
+        delegate: "GPU"
       },
       runningMode: "VIDEO", numPoses: 1,
     });
     console.log("PoseLandmarker created successfully.");
     initChart(); // グラフ初期化呼び出し
-    if (webcamButton) { webcamButton.disabled = false; webcamButton.innerText = "Recording Start"; }
+    if (webcamButton) {
+        webcamButton.disabled = false; webcamButton.innerText = "Recording Start";
+    }
     if (scoreDisplay) scoreDisplay.innerHTML = "モデル準備完了。ボタンを押して開始してください。";
   } catch (error) {
     console.error("Failed to initialize PoseLandmarker:", error);
-    if (webcamButton) { webcamButton.disabled = true; webcamButton.innerText = "Load Failed"; }
+    if (webcamButton) {
+        webcamButton.disabled = true; webcamButton.innerText = "Load Failed";
+    }
     let errorMsg = `モデル初期化失敗: ${error.message}`;
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error instanceof TypeError) { errorMsg = "モデルのダウンロード失敗。ネットワーク確認要。"; }
-    else if (error.message.includes('Wasm') || error.message.includes('WebGL')) { errorMsg = "ブラウザ/デバイスが未対応の可能性あり。"; }
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error instanceof TypeError) { errorMsg = "モデルのダウンロードに失敗しました..."; }
+    else if (error.message.includes('Wasm') || error.message.includes('WebGL')) { errorMsg = "ブラウザ/デバイスがモデル実行機能をサポートしていません..."; }
     if (scoreDisplay) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: ${errorMsg}</p>`; }
   }
-} // initPoseLandmarker end
+} // ここで initPoseLandmarker 関数が正しく閉じられているか確認
 
 /**
  * グラフを初期化
  */
 function initChart() {
-  if (!canvasCtx || !drawingUtils) { console.error("Cannot initialize chart: context not ready."); return; }
-  if (rebaChart) { console.log("Chart already initialized."); return; } // 二重初期化防止
+  if (!canvasCtx || !drawingUtils) { // 依存する要素が初期化されているか確認
+       console.error("Cannot initialize chart: canvas context or drawing utils not ready.");
+       return;
+  }
+  if (rebaChart) { return; } // 二重初期化防止
   try {
-    const chartCanvas = document.getElementById('rebaChart');
+    const chartCanvas = document.getElementById('rebaChart'); // Canvas要素を取得
     if (!chartCanvas) { console.error("Chart canvas element 'rebaChart' not found."); return; }
     const ctx = chartCanvas.getContext('2d');
     if (!ctx) { console.error("Failed to get 2D context from chart canvas."); return; }
@@ -102,21 +112,15 @@ function initChart() {
     console.log("Chart initialized successfully.");
   } catch(e) {
       console.error("Failed to initialize chart:", e);
-      if(scoreDisplay) scoreDisplay.innerHTML += "<p style='color:red;'>グラフ初期化失敗</p>";
+      if(scoreDisplay) scoreDisplay.innerHTML += "<p style='color:red;'>グラフの初期化に失敗しました。</p>";
   }
-} // initChart end
+} // ここで initChart 関数が正しく閉じられているか確認
 
 /**
  * グラフを更新
  */
 function updateChart(apiData) {
-    if (!rebaChart) { console.warn("Chart not initialized, skipping update."); return; }
-    if (!apiData) { console.warn("No apiData provided to updateChart, skipping."); return; }
-    // intermediate_scores の存在確認を強化
-    if (typeof apiData.intermediate_scores !== 'object' || apiData.intermediate_scores === null) {
-        console.warn("apiData missing valid intermediate_scores, skipping score A/B update.", apiData);
-    }
-
+    if (!rebaChart || !apiData || !apiData.intermediate_scores) { console.warn("Chart update skipped.", {chart: !!rebaChart, data: apiData}); return; }
     try {
         const newLabel = chartData.labels.length > 0 ? Number(chartData.labels[chartData.labels.length - 1]) + 1 : 1;
         while (chartData.labels.length >= chartDataPoints) {
@@ -125,15 +129,11 @@ function updateChart(apiData) {
         }
         chartData.labels.push(newLabel);
         chartData.datasets[0].data.push(apiData.final_score ?? null);
-        // intermediate_scores が存在する場合のみ Score A/B をプロット
-        const scoreA = apiData.intermediate_scores?.scoreA ?? null;
-        const scoreB = apiData.intermediate_scores?.scoreB ?? null;
-        chartData.datasets[1].data.push(scoreA);
-        chartData.datasets[2].data.push(scoreB);
+        chartData.datasets[1].data.push(apiData.intermediate_scores?.scoreA ?? null); // Optional chaining for safety
+        chartData.datasets[2].data.push(apiData.intermediate_scores?.scoreB ?? null); // Optional chaining for safety
         rebaChart.update();
-        // console.log("Chart update call successful."); // 必要ならログを有効化
-    } catch(e) { console.error("Error during chart update:", e, apiData); }
-} // updateChart end
+    } catch(e) { console.error("Failed to update chart data:", e, apiData); }
+} // ここで updateChart 関数が正しく閉じられているか確認
 
 /**
  * getUserMedia サポート確認
@@ -144,22 +144,21 @@ function hasGetUserMedia() { return !!(navigator.mediaDevices && navigator.media
  * Webカメラを有効化 (環境カメラ要求)
  */
 function enableCam() {
-    if (!hasGetUserMedia()) { console.warn("getUserMedia not supported"); if(scoreDisplay) scoreDisplay.innerHTML = `<p style="color: red;">カメラ未対応</p>`; webcamRunning = false; if(webcamButton) webcamButton.innerText = "Recording Start"; return; }
-    if (!poseLandmarker) { console.log("PoseLandmarker not loaded"); if(scoreDisplay) scoreDisplay.innerHTML = `<p>モデル未ロード</p>`; webcamRunning = false; if(webcamButton) webcamButton.innerText = "Recording Start"; return; }
+    if (!hasGetUserMedia()) { console.warn("getUserMedia not supported"); if(scoreDisplay) scoreDisplay.innerHTML = `<p style="color: red;">カメラ未対応ブラウザ</p>`; webcamRunning = false; webcamButton.innerText = "Recording Start"; return; }
+    if (!poseLandmarker) { console.log("PoseLandmarker not loaded"); if(scoreDisplay) scoreDisplay.innerHTML = `<p>モデル未ロード</p>`; webcamRunning = false; webcamButton.innerText = "Recording Start"; return; }
 
-    const constraints = { video: { facingMode: "environment" } }; // 環境カメラ要求
+    const constraints = { video: { facingMode: "environment" } };
     console.log("Requesting camera with constraints:", constraints);
     navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
-            if (!video) return;
             video.srcObject = stream;
             video.addEventListener("loadeddata", () => {
+                // Check again if running, in case user stopped immediately
                 if (!webcamRunning) { if (video.srcObject) { video.srcObject.getTracks().forEach(track => track.stop()); video.srcObject = null;} return; }
-                if (!canvasElement) return;
                 canvasElement.width = video.videoWidth;
                 canvasElement.height = video.videoHeight;
                 lastVideoTime = -1;
-                requestAnimationFrame(predictWebcam); // ループ開始
+                requestAnimationFrame(predictWebcam); // Start loop
             }, { once: true });
         })
         .catch((err) => {
@@ -169,9 +168,9 @@ function enableCam() {
             else if (err.name === 'NotAllowedError') { userErrorMessage = `カメラ許可なし`; }
             else if (err.name === 'NotFoundError') { userErrorMessage = `カメラ未検出`; }
             if (scoreDisplay) scoreDisplay.innerHTML = `<p style="color: red;">${userErrorMessage}</p>`;
-            webcamRunning = false; if(webcamButton) webcamButton.innerText = "Recording Start";
+            webcamRunning = false; webcamButton.innerText = "Recording Start";
         });
- } // enableCam end
+ } // ここで enableCam 関数が正しく閉じられているか確認
 
 /**
  * REBAスコアからリスクレベル文字列を取得
@@ -183,12 +182,12 @@ function getRiskLevelText(score) {
   if (score <= 7) return "中リスク (Medium)";
   if (score <= 10) return "高リスク (High)";
   return "非常に高リスク (Very High)";
-} // getRiskLevelText end
+} // ここで getRiskLevelText 関数が正しく閉じられているか確認
 
-// --- ボタンのイベントリスナー (最大スコア関連あり) ---
-if (webcamButton) {
+// --- ボタンのイベントリスナー ---
+if (webcamButton) { // Ensure button exists before adding listener
     webcamButton.addEventListener("click", () => {
-      if (!poseLandmarker && !webcamRunning) {
+      if (!poseLandmarker && !webcamRunning) { // Prevent starting if model never loaded
           console.log("Cannot start, model not loaded.");
           if(scoreDisplay) scoreDisplay.innerHTML = "<p style='color:red;'>モデル読込エラー</p>";
           return;
@@ -199,33 +198,39 @@ if (webcamButton) {
 
       if (webcamRunning) {
         // --- 開始時 ---
-        maxRebaScore = 0; // 最大スコアをリセット
+        maxRebaScore = 0;
         if(scoreDisplay) scoreDisplay.innerHTML = "カメラを起動中...";
-        // グラフデータをリセット (安全版)
+        // グラフデータを安全にリセット
         chartData.labels = [];
         chartData.datasets.forEach(dataset => { dataset.data = []; });
         if (rebaChart) { rebaChart.update(); }
         else { console.warn("Chart not initialized when trying to reset data on start."); }
-        enableCam(); // カメラ起動
+        enableCam();
       } else {
         // --- 停止時 ---
-        if (video && video.srcObject) { video.srcObject.getTracks().forEach(track => track.stop()); video.srcObject = null; console.log("Webcam stream stopped."); }
+        if (video.srcObject) { video.srcObject.getTracks().forEach(track => track.stop()); video.srcObject = null; console.log("Webcam stream stopped."); }
         if (canvasCtx) { canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height); }
         // 最大スコア表示
         const maxRiskLevel = getRiskLevelText(maxRebaScore);
         if (scoreDisplay) {
-          if (maxRebaScore > 0) { scoreDisplay.innerHTML = `<h3>評価終了</h3><p>最大REBAスコア: <strong style="font-size: 1.2em;">${maxRebaScore}</strong></p><p>リスクレベル: <strong style="font-size: 1.1em;">${maxRiskLevel}</strong></p>`; }
-          else { scoreDisplay.innerHTML = "評価停止中 (有効スコアなし)"; }
+          if (maxRebaScore > 0) {
+            scoreDisplay.innerHTML = `<h3>評価終了</h3><p>最大REBAスコア: <strong style="font-size: 1.2em;">${maxRebaScore}</strong></p><p>リスクレベル: <strong style="font-size: 1.1em;">${maxRiskLevel}</strong></p>`;
+          } else {
+            scoreDisplay.innerHTML = "評価停止中 (有効スコアなし)";
+          }
         }
         console.log(`Session stopped. Max REBA score was: ${maxRebaScore}`);
       }
-    }); // Event listener end
-} else { console.error("Webcam button not found!"); }
+    }); // ここで addEventListener のコールバックが正しく閉じられているか確認
+} else {
+     console.error("Webcam button not found!");
+}
 
-// キャリブレーション入力取得 (堅牢版 + wristBaseScore マッピング修正版)
+
+// キャリブレーション入力取得 (堅牢版)
 function getCalibrationInputs() {
     const names_in_html = [ "filmingSide", "neckRotation", "neckLateralBending", "trunkLateralFlexion", "loadForce", "shockForce", "postureCategory", "supportingLeg", "upperArmCorrection", "shoulderElevation", "gravityAssist", "wristCorrection", "wristAngleScore", "staticPosture", "repetitiveMovement", "unstableMovement", "coupling" ];
-    const name_map = { "wristAngleScore": "wristBaseScore" }; // HTML name -> Python name
+    const name_map = { "wristAngleScore": "wristBaseScore" };
     const data = {};
     let errorOccurred = false;
     for (const html_name of names_in_html) {
@@ -237,252 +242,141 @@ function getCalibrationInputs() {
         } else {
             console.warn(`Could not find checked input for name="${html_name}". Assigning default.`); errorOccurred = true;
             if (["filmingSide", "postureCategory"].includes(python_name)) { data[python_name] = ""; }
-            else if (python_name === "supportingLeg") { data[python_name] = null; } // Optionalはnull
-            else if (python_name === "wristBaseScore") { data[python_name] = 1; }   // wristBaseScoreのデフォルト
+            else if (python_name === "supportingLeg") { data[python_name] = null; }
+            else if (python_name === "wristBaseScore") { data[python_name] = 1; }
             else { data[python_name] = 0; }
         }
     }
     if (errorOccurred) { console.warn("Errors occurred fetching some calibration inputs...", data); }
-    else { /* console.log("Successfully obtained calibration inputs:", data); */ } // Reduce log noise
-    return data; // Return object even if incomplete
-} // getCalibrationInputs end
+    // ★★★ 必須キーチェックを削除（エラーがあっても部分的な data を返す方が動作は継続する）★★★
+    // const requiredPythonKeys = [ ... ];
+    // let missingKey = false;
+    // for (const key of requiredPythonKeys) { if (!(key in data)) { missingKey = true; } }
+    // if (missingKey) return undefined; // ← これが422の原因になりうるため削除
+    console.log("Successfully obtained calibration inputs:", data);
+    return data; // 常にオブジェクトを返す（不完全な可能性は残るが undefined は返さない）
+} // ここで getCalibrationInputs 関数が正しく閉じられているか確認
 
 
 /**
- * メインループ (最大スコア更新処理あり, 角度画面表示なし)
- */
-/**
- * メインループ (最大スコア更新処理あり, 角度画面表示なし)
+ * メインループ (最大スコア更新処理あり)
  */
 async function predictWebcam() {
-  // Check if running and essential components exist
-  if (!webcamRunning || !poseLandmarker) { return; }
-  // video要素とCanvasコンテキストの存在確認
-  if (!video || video.readyState < 2 || !canvasCtx || !drawingUtils) {
-      console.log("Video not ready or canvas context missing, skipping frame.");
-      // Try again next frame if still running
-      if (webcamRunning) requestAnimationFrame(predictWebcam);
+  if (!webcamRunning || !poseLandmarker) { // モデル未ロード時も停止
+      if (!poseLandmarker) console.warn("Predict loop called before PoseLandmarker loaded.");
       return;
   }
 
-  // Avoid running if time hasn't changed (relevant for paused video or slow processing)
-  if (video.currentTime === lastVideoTime) {
-       if (webcamRunning) requestAnimationFrame(predictWebcam); // Still request next frame
-       return;
+  // video要素とCanvasコンテキストの存在確認
+  if (!video || video.readyState < 2 || !canvasCtx || !drawingUtils) {
+      console.log("Video not ready or canvas context missing, skipping frame.");
+      if (webcamRunning) requestAnimationFrame(predictWebcam); // Try again next frame
+      return;
   }
-  lastVideoTime = video.currentTime; // 現在のフレーム時間を記録
-  const startTimeMs = performance.now(); // 検出処理の開始時間
 
-  // MediaPipe Pose Landmarker で姿勢を検出
-  poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
-    // Check if running inside the callback as well
-    if (!webcamRunning) return;
+  if (video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const startTimeMs = performance.now();
 
-    try { // コールバック全体の処理をtryで囲む (予期せぬエラー捕捉のため)
-        // 前回の描画をクリア
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    poseLandmarker.detectForVideo(video, startTimeMs, (result) => {
+      if (!webcamRunning) return; // Callback中に停止した場合
 
-        // ★★★ ランドマーク検出の有無をチェックしログ出力 ★★★
-        if (result.landmarks && result.landmarks.length > 0) {
-            console.log("[DEBUG] Landmarks DETECTED."); // ★ 検出成功ログ ★
-            const landmarkSet = result.landmarks[0]; // Assume only one person
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-            // --- ▼▼▼ ランドマーク検出成功時の処理 ▼▼▼ ---
-            try { // 描画処理もtry-catchで囲む
-                drawingUtils.drawLandmarks(landmarkSet, { radius: (data) => DrawingUtils.lerp(data.from.z ?? 0, -0.15, 0.1, 5, 1) });
-                drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
-            } catch(drawError) { console.error("Error drawing landmarks:", drawError); }
-
-            // API スロットリング
-            const now = performance.now();
-            if (now - lastApiCallTime > apiCallInterval) {
-              lastApiCallTime = now; // 最終呼び出し時間を更新
-              const calibInputs = getCalibrationInputs(); // 1. 入力取得
-
-              // 3. 入力データチェック
-              if (typeof calibInputs !== 'object' || calibInputs === null) {
-                  console.error("Skipping API call because calibInputs is invalid.", calibInputs);
-                  if(scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = "<p style='color:red;'>エラー: 入力値取得失敗</p>"; }
-                  return; // returnしないと下のpayload作成に進んでしまう
-              }
-
-              // 4. ペイロード作成
-              const payload = {
-                  landmarks: landmarkSet, // 2. ランドマーク取得したものを入れる
-                  calibInputs: calibInputs
-              };
-              // console.log("[DEBUG] Payload Object:", payload); // 必要ならログ出力
-
-              // 5. JSON 文字列化
-              let jsonPayload;
-              try {
-                  jsonPayload = JSON.stringify(payload);
-                  // console.log("[DEBUG] Stringified Payload:", jsonPayload); // 必要ならログ出力
-              } catch (stringifyError) {
-                  console.error("Error stringifying payload:", stringifyError, payload);
-                  if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データ作成失敗</p>`; }
-                  return; // stringify 失敗時も中断
-              }
-
-              // 6. API 呼び出しと Promise 処理
-              const apiUrl = "https://reba-cgph.onrender.com/compute_reba";
-              // console.log("Calling API:", apiUrl); // 必要ならログ出力
-
-              fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
-              .then(response => { // ① HTTP応答処理
-                  // console.log("[DEBUG] API response status:", response.status);
-                  if (!response.ok) {
-                      return response.text().then(text => {
-                         console.error("[DEBUG] API error response body text:", text);
-                         let errorMsg = `サーバーエラー Status: ${response.status}.`;
-                         try { const errData = JSON.parse(text); errorMsg = errData.detail || errorMsg } catch(e){}
-                         throw new Error(errorMsg);
-                      });
-                  }
-                  return response.json();
-              })
-              .then(data => { // ② 正常応答処理
-                 // console.log("[DEBUG] API success data object:", data);
-                 if (!data) { throw new Error("API OK but data null/undefined."); }
-                 // 最大スコア更新
-                 if (typeof data.final_score === 'number' && data.final_score > maxRebaScore) { maxRebaScore = data.final_score; }
-                 // スコア表示更新
-                 if (scoreDisplay && webcamRunning) {
-                     const score = (typeof data.final_score === 'number') ? data.final_score : 'N/A';
-                     const risk = data?.risk_level ?? 'N/A';
-                     scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
-                 }
-                 // グラフ更新
-                 if (webcamRunning) { updateChart(data); }
-                 // 計算された角度をコンソールに出力
-                 if (data.computed_angles) { console.log("Computed Angles:", data.computed_angles); }
-                 else { console.warn("Computed angles data missing."); }
-              })
-              .catch(err => { // ③ エラー処理
-                console.error("[DEBUG] Error caught in fetch chain:", err);
-                let displayMessage = err.message || "不明なAPIエラー";
-                if (err.name === 'TypeError') { displayMessage = "API接続失敗"; }
-                if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: スコア取得失敗 (${displayMessage})</p>`; }
-              });
-            } // --- スロットリング終了 ---
-            // --- ▲▲▲ ここまでランドマーク検出成功時の処理 ▲▲▲ ---
-
-        } else {
-            console.log("[DEBUG] No landmarks detected in this frame."); // ★ 検出失敗ログ ★
+      if (result.landmarks && result.landmarks.length > 0) {
+        const landmarkSet = result.landmarks[0];
+        // Drawing might fail if context is lost, add try/catch?
+        try {
+            drawingUtils.drawLandmarks(landmarkSet, { radius: (data) => DrawingUtils.lerp(data.from.z ?? 0, -0.15, 0.1, 5, 1) }); // Use default z=0 if missing
+            drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
+        } catch(drawError) {
+             console.error("Error drawing landmarks:", drawError);
         }
-        // ★★★ ここまでランドマーク有無のチェックとログ ★★★
 
-    } catch (callbackError) {
-         console.error("Error within detectForVideo callback:", callbackError);
-    }
-    }); // --- detectForVideo コールバック終了 ---
-  } // --- video.readyState チェック終了 ---
+        // API スロットリング
+        const now = performance.now();
+        if (now - lastApiCallTime > apiCallInterval) {
+          lastApiCallTime = now;
+          const calibInputs = getCalibrationInputs();
 
-  // 次のフレームを要求
-  if (webcamRunning) {
-      window.requestAnimationFrame(predictWebcam);
-  }
-} // --- predictWebcam 関数終了 ---drawingUtils.drawLandmarks(landmarkSet, { /* ... */ });
-                  drawingUtils.drawConnectors(landmarkSet, PoseLandmarker.POSE_CONNECTIONS);
-              } catch(drawError) { console.error("Error drawing landmarks:", drawError); }
+          // ★ calibInputs がオブジェクトであることを再度確認 (getCalibrationInputsが常にオブジェクトを返すように修正したが念のため) ★
+          if (typeof calibInputs !== 'object' || calibInputs === null) {
+              console.error("Skipping API call because calibInputs is not a valid object.", calibInputs);
+              if(scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = "<p style='color:red;'>エラー: 入力値取得失敗</p>"; }
+              return; // ここで return する必要あり
+          }
 
+          const payload = { landmarks: landmarkSet, calibInputs: calibInputs };
 
-            // API スロットリング
-            const now = performance.now();
-            if (now - lastApiCallTime > apiCallInterval) {
-              lastApiCallTime = now;
-              const calibInputs = getCalibrationInputs();
+          // JSON 文字列化
+          let jsonPayload;
+          try {
+              jsonPayload = JSON.stringify(payload);
+          } catch (stringifyError) {
+              console.error("Error stringifying payload:", stringifyError, payload);
+              if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データ作成失敗</p>`; }
+              return; // stringify 失敗時も中断
+          }
 
-              if (typeof calibInputs !== 'object' || calibInputs === null) {
-                  console.error("Skipping API call because calibInputs is invalid.", calibInputs);
-                  if(scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = "<p style='color:red;'>エラー: 入力値取得失敗</p>"; }
-                  return; // Exit callback for this frame
+          // API 呼び出し
+          const apiUrl = "https://reba-cgph.onrender.com/compute_reba";
+          console.log("Calling API:", apiUrl);
+
+          fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
+          .then(response => {
+              console.log("[DEBUG] API response status:", response.status);
+              if (!response.ok) {
+                  return response.text().then(text => { throw new Error(`Server Error ${response.status}: ${text.slice(0, 100)}`); }); // Simplify error
               }
-
-              const payload = { landmarks: landmarkSet, calibInputs: calibInputs };
-
-              let jsonPayload;
-              try {
-                  jsonPayload = JSON.stringify(payload);
-              } catch (stringifyError) {
-                  console.error("Error stringifying payload:", stringifyError, payload);
-                  if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: 送信データ作成失敗</p>`; }
-                  return; // Exit callback for this frame
-              }
-
-              // API 呼び出しと Promise 処理 (修正版エラーハンドリング含む)
-              const apiUrl = "https://reba-cgph.onrender.com/compute_reba"; // ★ 正しいURL ★
-              // console.log("Calling API:", apiUrl); // Reduce log noise
-
-              fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: jsonPayload })
-              .then(response => { // ① HTTP応答処理
-                  // console.log("[DEBUG] API response status:", response.status); // Reduce log noise
-                  if (!response.ok) {
-                      // Try parsing error text, then throw
-                      return response.text().then(text => {
-                         let errorMsg = `サーバーエラー Status: ${response.status}`;
-                         try { errorMsg = JSON.parse(text).detail || errorMsg } catch(e){} // Try parse detail
-                         console.error("[DEBUG] API error response text:", text); // Log raw error
-                         throw new Error(errorMsg);
-                      });
-                  }
-                  return response.json(); // Parse success response
-              })
-              .then(data => { // ② 正常応答データ処理
-                 // console.log("[DEBUG] API success data object:", data); // Reduce log noise
-                 if (!data) { throw new Error("API OK but data null/undefined."); }
-
-                 // 最大スコア更新
-                 if (typeof data.final_score === 'number' && data.final_score > maxRebaScore) { maxRebaScore = data.final_score; }
-                 // スコア表示更新
-                 if (scoreDisplay && webcamRunning) {
-                     const score = (typeof data.final_score === 'number') ? data.final_score : 'N/A';
-                     const risk = data?.risk_level ?? 'N/A';
-                     scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
-                 }
-                 // グラフ更新
-                 if (webcamRunning) { updateChart(data); }
-
-                 // ★★★ 計算された角度を【コンソールにのみ】出力 ★★★
-                 if (data.computed_angles) {
-                     console.log("Computed Angles:", data.computed_angles); // ← コンソールログは維持
-                 } else {
-                     console.warn("Computed angles data missing in API response.");
-                 }
-                 // ★★★ ここまで角度出力 ★★★
-
-              })
-              .catch(err => { // ③ fetch または then でのエラー処理
-                console.error("[DEBUG] Error caught in fetch chain:", err);
-                let displayMessage = err.message || "不明なAPIエラー";
-                if (err.name === 'TypeError') { displayMessage = "API接続失敗"; }
-                // Provide more context for common errors if possible
-                else if (err.message.includes("データ検証エラー")) { displayMessage = "入力データ形式エラー"; }
-                else if (err.message.includes("Server Error")) { displayMessage = "サーバー内部エラー"; }
-
-                if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: スコア取得失敗 (${displayMessage})</p>`; }
-              });
-            } // --- スロットリング終了 ---
-          } else { /* console.log("No landmarks detected."); */ } // No landmarks found in result
-      } catch (callbackError) { // Catch unexpected errors within the callback
-           console.error("Error within detectForVideo callback:", callbackError);
+              return response.json();
+          })
+          .then(data => {
+             console.log("[DEBUG] API success data object:", data);
+             if (!data) { throw new Error("API OK but data null/undefined."); }
+             // 最大スコア更新 (data.final_score が数値であることも確認)
+             if (typeof data.final_score === 'number' && data.final_score > maxRebaScore) {
+               maxRebaScore = data.final_score;
+               console.log(`New max REBA score: ${maxRebaScore}`);
+             }
+             // スコア表示更新
+             if (scoreDisplay && webcamRunning) {
+               const score = (typeof data.final_score === 'number') ? data.final_score : 'N/A';
+               const risk = data?.risk_level ?? 'N/A'; // risk_levelは文字列なので ?? でOK
+               scoreDisplay.innerHTML = `<p>最終REBAスコア: ${score}</p><p>リスクレベル: ${risk}</p>`;
+             }
+             // グラフ更新
+             if (webcamRunning) { updateChart(data); }
+          })
+          .catch(err => { // fetch または then でのエラー
+            console.error("[DEBUG] Error caught in fetch chain:", err);
+            let displayMessage = err.message || "不明なAPIエラー";
+            if (err.name === 'TypeError') { displayMessage = "API接続失敗"; }
+            if (scoreDisplay && webcamRunning) { scoreDisplay.innerHTML = `<p style="color: red;">エラー: スコア取得失敗 (${displayMessage})</p>`; }
+          });
+        } // --- スロットリング終了 ---
+      } else {
+          // console.log("No landmarks detected in this frame."); // ランドマークがない場合のログ
       }
     }); // --- detectForVideo コールバック終了 ---
   } // --- video.readyState チェック終了 ---
 
   // 次のフレームを要求
   if (webcamRunning) {
-      window.requestAnimationFrame(predictWebcam);
+    window.requestAnimationFrame(predictWebcam);
   }
-} // --- predictWebcam 関数終了 ---
+} // ここで predictWebcam 関数が正しく閉じられているか確認
 
-// アプリケーション初期化 (DOM読み込み後)
+// アプリケーション初期化
+// DOMが完全に読み込まれてから初期化処理を開始 (より安全に)
 window.addEventListener('DOMContentLoaded', (event) => {
     console.log('DOM fully loaded and parsed');
-    // 主要なDOM要素が存在するか確認
+    // DOM要素の存在を再確認
     if(video && canvasElement && canvasCtx && drawingUtils && scoreDisplay && webcamButton){
         initPoseLandmarker(); // モデルとグラフの初期化を開始
-    } else { console.error("Essential DOM elements missing!"); alert("ページ初期化失敗"); }
-}); // --- DOMContentLoaded リスナー終了 ---
+    } else {
+         console.error("One or more essential DOM elements are missing!");
+         alert("ページの初期化に失敗しました。必要な要素が見つかりません。");
+    }
+}); // ここで DOMContentLoaded リスナーが正しく閉じられているか確認
 
-// --- ファイル終端 ---
+// ★★★ ファイルの末尾に余計な文字や閉じられていないブロックがないか確認 ★★★
