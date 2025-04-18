@@ -285,6 +285,11 @@ async function predictWebcam() {
 
       if (result.landmarks && result.landmarks.length > 0) {
         const landmarkSet = result.landmarks[0];
+        
+            // ▼▼▼▼▼▼ landmarkSet全体をコンソールに出力 ▼▼▼▼▼▼
+              // これにより各点の x, y, z, visibility が確認できます
+              console.log("Raw LandmarkSet (with visibility):", landmarkSet);
+              // ▲▲▲▲▲▲ ここまで追加 ▲▲▲▲▲▲
         // Drawing might fail if context is lost, add try/catch?
         try {
             drawingUtils.drawLandmarks(landmarkSet, { radius: (data) => DrawingUtils.lerp(data.from.z ?? 0, -0.15, 0.1, 5, 1) }); // Use default z=0 if missing
